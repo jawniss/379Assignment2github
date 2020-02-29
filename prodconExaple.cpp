@@ -55,7 +55,7 @@ Note that the an int member of a user-defined struct is by default initialized t
 
 
 #define BUFFERSIZE 3                // buffersize = 2 * number of consumers
-#define NUMITEMS 6                  // has to be the number of elements in the producer array of stuff
+#define NUMITEMS 4                  // has to be the number of elements in the producer array of stuff
 
 using namespace std;
 
@@ -81,13 +81,16 @@ void * consumer(void *);
 pthread_t tid[NUM_THREADS];         // thread id?
 
 
+vector<string> fullVecOfInputs;         // global vector for now cus idk how to pass it into producer with th way producer used by thread
+                                        // initialisation in the main
+
+
 // http://www.cplusplus.com/reference/ios/ios/eof/
-void * readFromFile( string fileName )
+void readFromFile( string fileName )
 {
     cout << "reading" << endl;
-
     ifstream is( fileName );   // open file
-    vector<string> fullVecOfInputs;
+    // vector<string> fullVecOfInputs;
     vector<char> tempInput;
 
   char c;
@@ -129,43 +132,25 @@ void * readFromFile( string fileName )
         cout << fullVecOfInputs[i] << endl;
     }
   is.close();                        // close file
-    cout << "finishesd" << endl;
+    cout << "file done bein read" << endl;
 }
 
 
 
 
 
-void * producer(void * parm)
+void * producer( void * parm )          // idk how to pass the fullVecofInputs in to this method with the thead stuff in mains
 {
-
-
-     /*
-        Ctrl + D will send EOF to stdin in terminal.  THIS is how the prog knows "EOF" from keyboard input
-        // my implementation, form the assignment "Keyboard OR file" 
-        i only take one or the other, not both
-
-        should i put it here inthe main tho? i thnik i should put hte file reading
-        into producer
-
-
-        if file >> read from file else while
-        while( getline(cin, transaction) != EOF )
-        {
-            getline( cin, transaction );
-        }
-
-
-        i'll call the file "exampleInput" and say in the read me there was no info on the files that would
-        be read in so the person must mabually change the file name to the right one
-    */
 
 
 
     vector<string> prodArray;
+    for( int a = 0; a < fullVecOfInputs.size(); ++a )
+    {
+        cout << "good" <<endl;
+        prodArray.push_back( fullVecOfInputs[a] );
+    }
     
-
-
 
     
     printf("producer started.\n");
@@ -247,8 +232,6 @@ void * consumer(void * parm)
      --------------------------------------------------------------------------------*/
 
     
-
-
     string conCurrItem;
     int i;
     printf("consumer started.\n");
@@ -295,6 +278,14 @@ void * consumer(void * parm)
 }
 
 
+
+/*
+the way this prod con system works is the prod will keep tryna put things into the buffer till either the buffer's full
+or there's nothing left for it to push to the buffer - only then will the consumer start to work
+
+idk if it's supposed to be like producer will put a thing, the second a thing is available the conumser
+will start to try to take thing
+*/
 int main( int argc, char *argv[] ) 
 {
     string prodconInputCommand;
@@ -310,22 +301,11 @@ int main( int argc, char *argv[] )
 
 
 
-
-
-
-
-
-    pthread_mutex_lock( &(buffer.mutex) );            // i wanna lock while it's reading from file
+    pthread_mutex_lock( &(buffer.mutex) );            // i wanna lock while it's reading from file just in case
 
     string fileName;
     fileName = "exampleInput.txt";
-    cout << endl << endl << endl;
-    cout << "before reading file" << endl;
     readFromFile( fileName );
-    cout << "after reading file" << endl;
-
-    cout << endl << endl << endl;
-
     pthread_mutex_unlock(&(buffer.mutex));              // done readin from file
 
 
