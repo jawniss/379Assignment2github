@@ -75,6 +75,7 @@ int numOfTCommands = 0;
 int numOfTotalCommands = 0;
 
 int commandsRemaining = 0;
+int globalUserDefinedBufferSize = 0;        // cus the other const version can't be passed
 
 
 
@@ -101,7 +102,7 @@ typedef struct {
     pthread_mutex_t mutex;
     pthread_cond_t more;            // i think more and less is like 'theres more in the buffer now' or 
     pthread_cond_t less;            // now there's less items cus one was taken
-    // string sharedBuffer[bufferSize];    // idk how to change this based on user input, issue with it being a global variable
+
 } buffer_t;
 
 
@@ -223,12 +224,12 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
         // no maybe i can't do it here cus maybe there won't be another input
         // and the prod would just be stuck here
 
-        if (buffer.occupied >= bufferSize)              // buffer.occupied is like a counting semaphore
+        if (buffer.occupied >= globalUserDefinedBufferSize)              // buffer.occupied is like a counting semaphore
         {
             printf("the producer is WAITING.\n");
         }
 
-        while (buffer.occupied >= bufferSize)
+        while (buffer.occupied >= globalUserDefinedBufferSize)
         {
             pthread_cond_wait(&(buffer.less), &(buffer.mutex) );
         }
@@ -245,7 +246,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
             cout << "T Found" << endl;
             localBuffer[buffer.nextin] = prodArray[0];
             buffer.nextin++;
-        buffer.nextin %= bufferSize;
+        buffer.nextin %= globalUserDefinedBufferSize;
         } else if ( currentProdArrayItem == 'S' ) {
             cout << "S found" << endl;
             string intOfSCommand = prodArray[0].substr( 1, prodArray.size() - 1 );
@@ -379,7 +380,7 @@ void * consumer(void * parm)
             conCurrItem = localBuffer[buffer.nextout++];
             cout << "                          Current CONSUMER " << conID << " item: " << conCurrItem << endl;
 
-            buffer.nextout %= bufferSize;
+            buffer.nextout %= globalUserDefinedBufferSize;
             buffer.occupied--;
 
 
@@ -454,6 +455,7 @@ unlocks so consumer can instantly try to grab?
 */
 int main( int argc, char *argv[] ) 
 {
+    cout << "SSS" << endl;
     // cout << argv[1] << argv[2]<< argv[3] << endl;
     // i can do the if argc == 3 (means prodcon 3 1)
     // i still gotta do keybaord inputs
@@ -490,6 +492,8 @@ int main( int argc, char *argv[] )
     cout << "2" << endl;
 
     const int finalSizeOfBuffer = userDefinedBufferSize * 2;
+    globalUserDefinedBufferSize = finalSizeOfBuffer;
+
     cout << "3" << endl;
 
 
