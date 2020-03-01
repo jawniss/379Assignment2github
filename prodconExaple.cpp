@@ -315,24 +315,13 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
 
 
 
-// how to get the id of this specific thread?
+
 void * consumer(void * parm)
 {
-
-    /*--------------------------------------------------------------------------------
-    this might be how to grab the thread id on a linux system
-    user Evan Langlois https://stackoverflow.com/questions/21091000/how-to-get-thread-id-of-a-pthread-in-linux-c-program
-
-     pid_t x = syscall(__NR_gettid);
-
-
-
-     or this from same webpage, user "bleater" 
-     pid_t tid = gettid();
-     --------------------------------------------------------------------------------*/
-
     int conID = threadID;
     threadID++;
+
+
 
 
 
@@ -386,17 +375,9 @@ void * consumer(void * parm)
         
 
         cout << "consumer " << conID << " executing " << endl;
-
-            /* while( conCurrItem[0] == "S" )
-            {
-                conCurrItem = buffer.sharedBuffer[ buffer.nextout++ ]
-            }
-            */
-            conCurrItem = buffer.sharedBuffer[buffer.nextout++];                // have to check if it's a T<> not S<>
+            conCurrItem = buffer.sharedBuffer[buffer.nextout++];
             cout << "                          Current CONSUMER " << conID << " item: " << conCurrItem << endl;
 
-
-            // Trans( conCurrItem );
             buffer.nextout %= bufferSize;
             buffer.occupied--;
 
@@ -422,8 +403,7 @@ void * consumer(void * parm)
             string intOfTCommand = conCurrItem.substr( 1, conCurrItem.size() - 1 );
             int transTime = stoi( intOfTCommand );
             cout << "Transtime" << transTime << endl;
-            Trans( transTime );                        // i gotta put in the parse then do thing
-            // prolly can just do what i did for the producer, char ____ = conCurrItem.at(1)
+            Trans( transTime );
 
 
 
@@ -473,6 +453,12 @@ unlocks so consumer can instantly try to grab?
 */
 int main( int argc, char *argv[] ) 
 {
+    // cout << argv[1] << argv[2]<< argv[3] << endl;
+    // i can do the if argc == 3 (means prodcon 3 1)
+    // i still gotta do keybaord inputs
+
+
+
     string prodconInputCommand;
     getline( cin, prodconInputCommand );
     vector<string> separatedInput = splitInputCommand( prodconInputCommand );   // i gotta put the whole T<n> S<n> into the 
