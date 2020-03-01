@@ -47,15 +47,25 @@ Note that the an int member of a user-defined struct is by default initialized t
 #include <vector>
 #include <iostream>
 #include <fstream>      // std::ifstream
+#include <array>
 
 
-// #include "tands.h"
 #include "splitTheInput.h"
 
 
 
-#define BUFFERSIZE 3                // buffersize = 2 * number of consumers
-#define NUMITEMS 4                  // has to be the number of elements in the producer array of stuff
+// #define BUFFERSIZE 3                // buffersize = 2 * number of consumers
+// #define NUMITEMS 4                  // has to be the number of elements in the producer array of stuff
+const int bufferSize = 5;
+int numOfCommands = 0;
+
+
+
+
+bool prodExitted = false;
+
+
+int threadID = 1;
 
 using namespace std;
 
@@ -65,24 +75,33 @@ void Sleep( int n );                // says not to modify tands.c which i have t
 
 
 typedef struct {
-    string sharedBuffer[BUFFERSIZE];
     int occupied;                   // counting semaphore
     int nextin, nextout;            // think these are the variables saying which item is to be nextin, nextout
     pthread_mutex_t mutex;
     pthread_cond_t more;            // i think more and less is like 'theres more in the buffer now' or 
     pthread_cond_t less;            // now there's less items cus one was taken
+    string sharedBuffer[bufferSize];    // idk how to change this based on user input, issue with it being a global variable
 } buffer_t;
+
 
 
 buffer_t buffer;
 void * producer(void *);
 void * consumer(void *);
-#define NUM_THREADS 3               // it looks like this actually makes as many threads as needed
-pthread_t tid[NUM_THREADS];         // thread id?
+// #define NUM_THREADS 3               // it looks like this actually makes as many threads as needed
+// pthread_t tid[NUM_THREADS];         // thread id?
 
 
 vector<string> fullVecOfInputs;         // global vector for now cus idk how to pass it into producer with th way producer used by thread
                                         // initialisation in the main
+
+
+
+
+
+
+
+
 
 
 // http://www.cplusplus.com/reference/ios/ios/eof/
@@ -98,18 +117,10 @@ void readFromFile( string fileName )
     {
         if( c != '\n' )              // problem is c is just one char, it'll stay here cus that 1 char never changes
         {
-            cout << c;
             tempInput.push_back( c );                   // IT"S NOT PUSHING INTO THING
-            cout << endl << endl << endl;
-            for( int b = 0; b < tempInput.size(); ++b )
-            {
-                cout << tempInput[b];
-            }
-            cout << endl << endl << endl;
         } else {                        // hitting here means it is new line
-            cout << "else" << endl << endl << endl;
             std::string tempString(tempInput.begin(), tempInput.end());
-            cout << "tempstring " << tempString << endl;
+            // cout << "tempstring " << tempString << endl;
             fullVecOfInputs.push_back( tempString );
             tempInput.clear();
         }
@@ -131,9 +142,15 @@ void readFromFile( string fileName )
     {
         cout << fullVecOfInputs[i] << endl;
     }
+    numOfCommands = fullVecOfInputs.size();
   is.close();                        // close file
     cout << "file done bein read" << endl;
 }
+
+
+
+
+
 
 
 
@@ -143,11 +160,9 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
 {
 
 
-
     vector<string> prodArray;
     for( int a = 0; a < fullVecOfInputs.size(); ++a )
     {
-        cout << "good" <<endl;
         prodArray.push_back( fullVecOfInputs[a] );
     }
     
@@ -155,7 +170,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
     
     printf("producer started.\n");
     int i;
-    for( i = 0; i < NUMITEMS; i++ )
+    for( i = 0; i < numOfCommands; i++ )
     { /* produce an item, one character from item[] */
         if ( prodArray.size() == 0 ) 
         {
@@ -167,19 +182,16 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
 
 
 
-
-
-
         // MAYBE HERE DURING THE PRODUCER LOCK IS WHERE WE GRAB THE INPUT, THE WHOLE THING PAUSES HERE RIGHT
         // no maybe i can't do it here cus maybe there won't be another input
         // and the prod would just be stuck here
 
-        if (buffer.occupied >= BUFFERSIZE)              // buffer.occupied is like a counting semaphore
+        if (buffer.occupied >= bufferSize)              // buffer.occupied is like a counting semaphore
         {
             printf("the producer is WAITING.\n");
         }
 
-        while (buffer.occupied >= BUFFERSIZE)
+        while (buffer.occupied >= bufferSize)
         {
             pthread_cond_wait(&(buffer.less), &(buffer.mutex) );
         }
@@ -187,7 +199,9 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
 
 
         cout << "Pushing into sharedbuff: " << prodArray[0] << endl;
-        // buffer.sharedBuffer.push_back(prodArray[0]);        // it's not putting in the buffer rirght
+        // I SHOULD PUT A IF CHECK HERE, IF THE ITEM IS START WITH S DON'T PUSH IT,
+        // JUST DO THE SLEEP COMMAND FUNCTION. ONLY PUSH INTO SHAREDBUFFER IF IT"S
+        // A T<n>
         buffer.sharedBuffer[buffer.nextin] = prodArray[0];
         prodArray.erase( prodArray.begin() );
         cout << "stuff left in the producer arraY:" << " ";
@@ -197,7 +211,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
         }
         cout << endl;
         buffer.nextin++;
-        buffer.nextin %= BUFFERSIZE;
+        buffer.nextin %= bufferSize;
         buffer.occupied++;
         /* now: either buffer.occupied < BUFFERSIZE and buffer.nextin is the index
          of the next empty slot in the buffer, or
@@ -211,7 +225,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
     cout << "sharedbuffer" << " " << buffer.sharedBuffer[0] << " " 
         << buffer.sharedBuffer[1] << " " << buffer.sharedBuffer[2] << endl;
     printf("producer exiting.\n");
-    
+    prodExitted = true;
     pthread_exit(0);
 }
 
@@ -231,12 +245,15 @@ void * consumer(void * parm)
      pid_t tid = gettid();
      --------------------------------------------------------------------------------*/
 
-    
+    int conID = threadID;
+    threadID++;
     string conCurrItem;
     int i;
-    printf("consumer started.\n");
+    // printf("consumer started.\n");
+    cout << "consumer " << conID << " started" << endl;
 
-    for( i = 0; i < NUMITEMS; i++ )
+    for( i = 0; i < numOfCommands; i++ )
+    // while( prodExitted == false )
     {
         pthread_mutex_lock(&(buffer.mutex) );                   // LOCK
 
@@ -248,34 +265,51 @@ void * consumer(void * parm)
             printf("consumer WAITING.\n");            // This is strickly waiting
         }
 
-        while(buffer.occupied <= 0)
+        while( buffer.occupied <= 0 && prodExitted == false )
         {
             pthread_cond_wait( &(buffer.more), &(buffer.mutex) );            
         }
 
-        printf("consumer executing.\n");
+            printf("consumer executing.\n");
 
-        /* while( conCurrItem[0] == "S" )
-        {
-            conCurrItem = buffer.sharedBuffer[ buffer.nextout++ ]
-        }
-        */
-        conCurrItem = buffer.sharedBuffer[buffer.nextout++];                // have to check if it's a T<> not S<>
-        cout << "Current CONSUMER item: " << conCurrItem << endl;
-        // Trans( conCurrItem );
-        buffer.nextout %= BUFFERSIZE;
-        buffer.occupied--;
-        /* now: either buffer.occupied > 0 and buffer.nextout is the index
-        of the next occupied slot in the buffer, or
-        buffer.occupied == 0 and buffer.nextout is the index of the next
-        (empty) slot that will be filled by a producer (such as
-        buffer.nextout == buffer.nextin) */
-        pthread_cond_signal(&(buffer.less)); 
-        pthread_mutex_unlock(&(buffer.mutex));              // UNLOCK
+            /* while( conCurrItem[0] == "S" )
+            {
+                conCurrItem = buffer.sharedBuffer[ buffer.nextout++ ]
+            }
+            */
+            conCurrItem = buffer.sharedBuffer[buffer.nextout++];                // have to check if it's a T<> not S<>
+            cout << "                          Current CONSUMER " << conID << " item: " << conCurrItem << endl;
+
+
+            // Trans( conCurrItem );
+            buffer.nextout %= bufferSize;
+            buffer.occupied--;
+            /* now: either buffer.occupied > 0 and buffer.nextout is the index
+            of the next occupied slot in the buffer, or
+            buffer.occupied == 0 and buffer.nextout is the index of the next
+            (empty) slot that will be filled by a producer (such as
+            buffer.nextout == buffer.nextin) */
+            pthread_cond_signal(&(buffer.less)); 
+            pthread_mutex_unlock(&(buffer.mutex));              // UNLOCK
+            // break;                                           // with this break each consumer thread takes 1 item and that's it done exits
+        
     }
-    printf("consumer exiting.\n"); 
+    // printf("consumer exiting.\n"); 
+    cout << "consumer " << conID << " exiting" << endl;
     pthread_exit(0);
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -300,12 +334,18 @@ int main( int argc, char *argv[] )
     }
 
 
+    // try to delete the buffer.sharedBuffer and make the new size of it?
+
+
+
+
 
     pthread_mutex_lock( &(buffer.mutex) );            // i wanna lock while it's reading from file just in case
 
     string fileName;
     fileName = "exampleInput.txt";
     readFromFile( fileName );
+
     pthread_mutex_unlock(&(buffer.mutex));              // done readin from file
 
 
@@ -322,13 +362,25 @@ int main( int argc, char *argv[] )
     pthread_cond_init( &(buffer.less), NULL );
     pthread_mutex_init( &buffer.mutex, NULL );
 
-    
-    pthread_create(&tid[1], NULL, consumer, NULL);          // 'consumer' is the method that the thread will start at
-    pthread_create(&tid[0], NULL, producer, NULL);          // but theres 2 consumers no? why only 1 consumer create? unless &tid[1] makes 2? [0] then [1]?         
+
+
+    // i can actually define how many threads from the user here
+    int numOfThreads = stoi(separatedInput[1]);           // it looks like this actually makes as many threads as needed
+    pthread_t tid[numOfThreads];         // thread id?
     
 
 
-    for ( i = 0; i < NUM_THREADS; i++)  
+    // pthread_create(&tid[1], NULL, consumer, NULL);          // 'consumer' is the method that the thread will start at
+    pthread_create(&tid[0], NULL, producer, NULL);          // but theres 2 consumers no? why only 1 consumer create? unless &tid[1] makes 2? [0] then [1]?   
+    
+    
+    for( int a = 0; a < numOfThreads; ++a )
+    {
+        pthread_create(&tid[a], NULL, consumer, NULL);          // 'consumer' is the method that the thread will start at
+    }
+    
+
+    for ( i = 0; i < numOfThreads; i++)  
         pthread_join(tid[i], NULL);                         // must be something here with the 2 consumers
 
     printf("\nmain() reporting that all %d threads have terminated\n", i);
