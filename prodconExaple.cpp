@@ -101,7 +101,7 @@ typedef struct {
     pthread_mutex_t mutex;
     pthread_cond_t more;            // i think more and less is like 'theres more in the buffer now' or 
     pthread_cond_t less;            // now there's less items cus one was taken
-    string sharedBuffer[bufferSize];    // idk how to change this based on user input, issue with it being a global variable
+    // string sharedBuffer[bufferSize];    // idk how to change this based on user input, issue with it being a global variable
 } buffer_t;
 
 
@@ -196,6 +196,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
 {
 
 
+    string *localBuffer = (string *) parm;
     vector<string> prodArray;
     for( int a = 0; a < fullVecOfInputs.size(); ++a )
     {
@@ -242,7 +243,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
         if( currentProdArrayItem == 'T' )               // how to see if first letter in string is S
         {
             cout << "T Found" << endl;
-            buffer.sharedBuffer[buffer.nextin] = prodArray[0];
+            localBuffer[buffer.nextin] = prodArray[0];
             buffer.nextin++;
         buffer.nextin %= bufferSize;
         } else if ( currentProdArrayItem == 'S' ) {
@@ -279,8 +280,8 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
         pthread_mutex_unlock(&(buffer.mutex));          // UNLOCK  - writing to the file should happen before the unlock
     }
     
-    cout << "sharedbuffer" << " " << buffer.sharedBuffer[0] << " " 
-        << buffer.sharedBuffer[1] << " " << buffer.sharedBuffer[2] << endl;
+    cout << "sharedbuffer" << " " << localBuffer[0] << " " 
+        << localBuffer[1] << " " << localBuffer[2] << endl;
 
 
 
@@ -321,7 +322,7 @@ void * consumer(void * parm)
     int conID = threadID;
     threadID++;
 
-
+    string *localBuffer = (string *) parm;
 
 
 
@@ -375,7 +376,7 @@ void * consumer(void * parm)
         
 
         cout << "consumer " << conID << " executing " << endl;
-            conCurrItem = buffer.sharedBuffer[buffer.nextout++];
+            conCurrItem = localBuffer[buffer.nextout++];
             cout << "                          Current CONSUMER " << conID << " item: " << conCurrItem << endl;
 
             buffer.nextout %= bufferSize;
@@ -459,16 +460,15 @@ int main( int argc, char *argv[] )
 
 
 
-    string prodconInputCommand;
-    getline( cin, prodconInputCommand );
-    vector<string> separatedInput = splitInputCommand( prodconInputCommand );   // i gotta put the whole T<n> S<n> into the 
-    // array not just the number, cus otherwise the con and prod don't know which to use ex the con might use a S<n>
+    // string prodconInputCommand;
+    // getline( cin, prodconInputCommand );
+    // vector<string> separatedInput = splitInputCommand( prodconInputCommand );
 
-    if( separatedInput.size() == 2 )
-    {
-        cout << "two" << endl;
-        separatedInput.push_back("0");                // sets the default ID of log file to 0, later will hav to to intToString(sepInput[2])
-    }
+    // if( separatedInput.size() == 2 )
+    // {
+    //     cout << "two" << endl;
+    //     separatedInput.push_back("0");                // sets the default ID of log file to 0, later will hav to to intToString(sepInput[2])
+    // }
 
 
     // try to delete the buffer.sharedBuffer and make the new size of it?
@@ -485,10 +485,17 @@ int main( int argc, char *argv[] )
 
     pthread_mutex_unlock(&(buffer.mutex));              // done readin from file
 
+    cout << "1" << endl;
+    int userDefinedBufferSize = stoi( argv[1] );
+    cout << "2" << endl;
+
+    const int finalSizeOfBuffer = userDefinedBufferSize * 2;
+    cout << "3" << endl;
 
 
-
-
+    string localNonGlobalBuffer[ finalSizeOfBuffer ];
+    cout << "4" << endl;
+    
 
 
 
@@ -504,18 +511,19 @@ int main( int argc, char *argv[] )
 
 
     // i can actually define how many threads from the user here
-    int numOfThreads = stoi(separatedInput[1]);           // it looks like this actually makes as many threads as needed
+    // int numOfThreads = stoi(separatedInput[1]);           // it looks like this actually makes as many threads as needed
+    int numOfThreads = stoi(argv[1]); 
     pthread_t tid[numOfThreads];         // thread id?
     
 
 
     // pthread_create(&tid[1], NULL, consumer, NULL);          // 'consumer' is the method that the thread will start at
-    pthread_create(&tid[0], NULL, producer, NULL);          // but theres 2 consumers no? why only 1 consumer create? unless &tid[1] makes 2? [0] then [1]?   
+    pthread_create(&tid[0], NULL, producer, localNonGlobalBuffer );          // but theres 2 consumers no? why only 1 consumer create? unless &tid[1] makes 2? [0] then [1]?   
     
     
     for( int a = 0; a < numOfThreads; ++a )
     {
-        pthread_create(&tid[a], NULL, consumer, NULL);          // 'consumer' is the method that the thread will start at
+        pthread_create(&tid[a], NULL, consumer, localNonGlobalBuffer );          // 'consumer' is the method that the thread will start at
     }
     
 
