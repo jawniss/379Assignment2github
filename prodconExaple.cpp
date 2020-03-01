@@ -246,6 +246,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
             cout << "T Found" << endl;
             localBuffer[buffer.nextin] = prodArray[0];
             buffer.nextin++;
+            buffer.occupied++;
         buffer.nextin %= globalUserDefinedBufferSize;
         } else if ( currentProdArrayItem == 'S' ) {
             cout << "S found" << endl;
@@ -267,7 +268,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
 
 
 
-        buffer.occupied++;
+        // buffer.occupied++;
 
 
 
@@ -482,23 +483,22 @@ int main( int argc, char *argv[] )
     pthread_mutex_lock( &(buffer.mutex) );            // i wanna lock while it's reading from file just in case
 
     string fileName;
-    fileName = "exampleInput.txt";
+    fileName = argv[3];
     readFromFile( fileName );
 
     pthread_mutex_unlock(&(buffer.mutex));              // done readin from file
 
-    cout << "1" << endl;
+
     int userDefinedBufferSize = stoi( argv[1] );
-    cout << "2" << endl;
+
 
     const int finalSizeOfBuffer = userDefinedBufferSize * 2;
     globalUserDefinedBufferSize = finalSizeOfBuffer;
 
-    cout << "3" << endl;
 
 
     string localNonGlobalBuffer[ finalSizeOfBuffer ];
-    cout << "4" << endl;
+
     
 
 
