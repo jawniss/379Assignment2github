@@ -45,6 +45,12 @@ Note that the an int member of a user-defined struct is by default initialized t
  * the example output is how they run the program but idk how they're doing that
  * Charles brought this up
  * 
+ * 
+ * 
+ * 
+ * BUFFER.OCCUPIED CAN BE USED AS THE "Q" VALUE: BUFFER.OCCUPIED IS EQUIVILANT TO 
+ * HOW MANY ITEMS CURRENTLY IN THE BUFFER
+ * 
  */
 
 
@@ -208,7 +214,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
             break;  /* Quit if at end of string. */
         }
 
-        pthread_mutex_lock( &(buffer.mutex) );            // HERES THE LOCK
+        pthread_mutex_lock( &( buffer.mutex ) );            // HERES THE LOCK
 
 
 
@@ -295,9 +301,24 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // how to get the id of this specific thread?
 void * consumer(void * parm)
 {
+
     /*--------------------------------------------------------------------------------
     this might be how to grab the thread id on a linux system
     user Evan Langlois https://stackoverflow.com/questions/21091000/how-to-get-thread-id-of-a-pthread-in-linux-c-program
@@ -313,6 +334,8 @@ void * consumer(void * parm)
     int conID = threadID;
     threadID++;
 
+
+
     runningThreads++;
 
     string conCurrItem;
@@ -322,8 +345,10 @@ void * consumer(void * parm)
 
     for( i = 0; i < numOfTCommands; i++ )
     {
-        cout << "consumer " << conID << " " << i << endl;
-        if( commandsRemaining == 0 )
+    cout << "consumer " << conID  << "Commands remaining " << commandsRemaining << endl;
+
+        // cout << "consumer " << conID << " " << i << endl;
+        if( commandsRemaining <= 0 )
         {
             break;
         }
@@ -346,6 +371,8 @@ void * consumer(void * parm)
         {
             pthread_cond_wait( &(buffer.more), &(buffer.mutex) );            
         }
+
+        
 
         cout << "consumer " << conID << " executing " << endl;
 
@@ -373,14 +400,27 @@ void * consumer(void * parm)
             buffer.occupied == 0 and buffer.nextout is the index of the next
             (empty) slot that will be filled by a producer (such as
             buffer.nextout == buffer.nextin) */
+
+
+
+
+
             pthread_cond_signal(&(buffer.less)); 
-            pthread_mutex_unlock(&(buffer.mutex));              // UNLOCK
+            pthread_mutex_unlock(&(buffer.mutex));                         // UNLOCK
 
             string intOfTCommand = conCurrItem.substr( 1, conCurrItem.size() - 1 );
             int transTime = stoi( intOfTCommand );
             cout << "Transtime" << transTime << endl;
             Trans( transTime );                        // i gotta put in the parse then do thing
             // prolly can just do what i did for the producer, char ____ = conCurrItem.at(1)
+
+
+
+            // pthread_cond_signal(&(buffer.less)); 
+            // pthread_mutex_unlock(&(buffer.mutex));                         // UNLOCK
+
+
+
         cout << "consumer " << conID << " finished trans " << endl;
             // break;                                           // with this break each consumer thread takes 1 item and that's it done exits
         
@@ -479,7 +519,7 @@ int main( int argc, char *argv[] )
     }
     
 
-    for ( i = 0; i < numOfThreads; i++)  
+    for ( i = 0; i < numOfThreads; i++)
         pthread_join(tid[i], NULL);                         // must be something here with the 2 consumers
 
 
