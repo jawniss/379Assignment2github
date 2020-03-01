@@ -58,6 +58,7 @@ Note that the an int member of a user-defined struct is by default initialized t
 // #define NUMITEMS 4                  // has to be the number of elements in the producer array of stuff
 const int bufferSize = 5;
 int numOfCommands = 0;
+int commandsRemaining = 0;
 
 
 
@@ -147,6 +148,7 @@ void readFromFile( string fileName )
         cout << fullVecOfInputs[i] << endl;
     }
     numOfCommands = fullVecOfInputs.size();
+    commandsRemaining = fullVecOfInputs.size();
   is.close();                        // close file
     cout << "file done bein read" << endl;
 }
@@ -273,8 +275,13 @@ void * consumer(void * parm)
     // printf("consumer started.\n");
     cout << "consumer " << conID << " started" << endl;
 
-    for( i = 0; i < numOfCommands; i++ )
+    for( i = 0; i < numOfCommands + 10; i++ )
     {
+        cout << "consumer " << conID << " " << i << endl;
+        if( commandsRemaining == 0 )
+        {
+            break;
+        }
         pthread_mutex_lock(&(buffer.mutex) );                   // LOCK
 
         // HERE CONSUMER ASKS FOR WORK
@@ -282,13 +289,6 @@ void * consumer(void * parm)
 
         cout << "Buffer.occupied value " << buffer.occupied << endl;
 
-
-        if( buffer.occupied == 0 && firstCommand == false )
-        {
-            break;
-        } else {
-            firstCommand = false;
-        }
 
 
 
@@ -317,6 +317,12 @@ void * consumer(void * parm)
             buffer.nextout %= bufferSize;
             buffer.occupied--;
 
+
+
+
+            commandsRemaining--;
+
+
             /* now: either buffer.occupied > 0 and buffer.nextout is the index
             of the next occupied slot in the buffer, or
             buffer.occupied == 0 and buffer.nextout is the index of the next
@@ -325,6 +331,7 @@ void * consumer(void * parm)
             pthread_cond_signal(&(buffer.less)); 
             pthread_mutex_unlock(&(buffer.mutex));              // UNLOCK
             Trans( stoi( conCurrItem ) );
+        cout << "consumer " << conID << " finished trans " << endl;
             // break;                                           // with this break each consumer thread takes 1 item and that's it done exits
         
     }
