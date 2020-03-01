@@ -125,7 +125,7 @@ vector<string> fullVecOfInputs;         // global vector for now cus idk how to 
 
 
 
-
+/*
 // http://www.cplusplus.com/reference/ios/ios/eof/
 void readFromFile( string fileName )
 {
@@ -183,6 +183,80 @@ void readFromFile( string fileName )
   is.close();                        // close file
     cout << "file done bein read" << endl;
 }
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// http://www.cplusplus.com/reference/ios/ios/eof/
+void inputFileRedirection()
+{
+    // vector<string> fullVecOfInputs;
+    vector<char> tempInput;
+
+  char c;
+  while (cin.get(c))                  // loop getting single characters
+    {
+        if( c != '\n' )              // problem is c is just one char, it'll stay here cus that 1 char never changes
+        {
+            tempInput.push_back( c );                   // IT"S NOT PUSHING INTO THING
+        } else {                        // hitting here means it is new line
+            std::string tempString(tempInput.begin(), tempInput.end());
+            // cout << "tempstring " << tempString << endl;
+            fullVecOfInputs.push_back( tempString );
+            tempInput.clear();
+        }
+    }
+    // here at end i might have to do one more tempstring push to fullvecofinputs cus 
+    // i think it skips the last time doing it
+    std::string tempString(tempInput.begin(), tempInput.end());
+    cout << "tempstring " << tempString << endl;
+    fullVecOfInputs.push_back( tempString );
+    tempInput.clear();
+
+
+    for( int i = 0; i < fullVecOfInputs.size(); ++i )
+    {
+        cout << fullVecOfInputs[i] << endl;
+    }
+
+
+    for( int a = 0; a < fullVecOfInputs.size(); ++a )
+    {
+        if( fullVecOfInputs[a].at(0) == 'T' )
+        {
+            // cout << "T " << 
+            numOfTCommands++;
+            commandsRemaining++;
+        }
+        numOfTotalCommands++;
+    }
+    cout << "finput file datekn" << endl;
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -336,7 +410,8 @@ void * consumer(void * parm)
     cout << "consumer " << conID << " started" << endl;
 
     // for( i = 0; i < numOfTotalCommands; i++ )
-    while( commandsRemaining > 0 )
+    // while( commandsRemaining > 0 )
+    while( true )
     {
         cout << "consumer " << conID  << "Commands remaining " << commandsRemaining << endl;
 
@@ -344,6 +419,13 @@ void * consumer(void * parm)
 
 
         cout << "consumer " << conID  << "before lock " << endl;
+        if( commandsRemaining <= 0 )
+        {
+            // break;
+            cout << "consumer " << conID << " exiting" << endl;
+            runningThreads--;
+            pthread_exit(0);
+        }
         pthread_mutex_lock(&(buffer.mutex) );                   // LOCK
         cout << "consumer " << conID  << "after lock"  << endl;
 
@@ -453,10 +535,16 @@ will start to try to take thing
 
 At the start producer has lock control until the entire buffer is full - should try to make it so it puts 1 then
 unlocks so consumer can instantly try to grab?
+
+
+
+
+sometimes with a lotta threads it'll work, but sometimes not. i have no idea why. like run ./prodcon 5 1 < inputs
+might not work, put ./prodcon 5 1 < inputs in again it might work, might not, might, wth
 */
 int main( int argc, char *argv[] ) 
 {
-    cout << "SSS" << endl;
+
     // cout << argv[1] << argv[2]<< argv[3] << endl;
     // i can do the if argc == 3 (means prodcon 3 1)
     // i still gotta do keybaord inputs
@@ -482,9 +570,28 @@ int main( int argc, char *argv[] )
 
     pthread_mutex_lock( &(buffer.mutex) );            // i wanna lock while it's reading from file just in case
 
-    string fileName;
-    fileName = argv[3];
-    readFromFile( fileName );
+
+
+    // string fileName;
+
+
+    // int prodConSize = argc;
+    
+
+
+
+
+
+
+    // fileName = "exampleInput.txt";
+    // cout << fileName <<  " saf"<< endl;
+
+
+
+    // readFromFile( fileName );
+    inputFileRedirection();
+
+
 
     pthread_mutex_unlock(&(buffer.mutex));              // done readin from file
 
