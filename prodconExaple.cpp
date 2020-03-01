@@ -62,7 +62,11 @@ int numOfCommands = 0;
 
 
 
-bool prodExitted = false;
+int runningThreads = 0;
+
+
+
+bool firstCommand = true;
 
 
 int threadID = 1;
@@ -224,8 +228,22 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
     
     cout << "sharedbuffer" << " " << buffer.sharedBuffer[0] << " " 
         << buffer.sharedBuffer[1] << " " << buffer.sharedBuffer[2] << endl;
+
+
+
+
+
+        /*
+        THE ASSIGNEMENT SAID 'DONT LEAVE ANYTHING RUNNING AFTER THE PRODUCER EXITS, YOU'LL BE PENALISED
+        SO I THINK I SHOULD BUSY WAIT HERE WHILE CONSUMERS STILL RUNNING
+        MAKE ANOTHER LGOBAL VARIABLE COUNTER, IF == 0 THEN EXIT PRODUCER
+        */
+    while( runningThreads > 0 )
+    {
+
+    }
     printf("producer exiting.\n");
-    prodExitted = true;
+
     pthread_exit(0);
 }
 
@@ -247,30 +265,44 @@ void * consumer(void * parm)
 
     int conID = threadID;
     threadID++;
+
+    runningThreads++;
+
     string conCurrItem;
     int i;
     // printf("consumer started.\n");
     cout << "consumer " << conID << " started" << endl;
 
     for( i = 0; i < numOfCommands; i++ )
-    // while( prodExitted == false )
     {
         pthread_mutex_lock(&(buffer.mutex) );                   // LOCK
 
         // HERE CONSUMER ASKS FOR WORK
-        printf("Consumer asking for work");
+        cout << "consumer " << conID << " asking for work " << endl;
+
+        cout << "Buffer.occupied value " << buffer.occupied << endl;
+
+
+        if( buffer.occupied == 0 && firstCommand == false )
+        {
+            break;
+        } else {
+            firstCommand = false;
+        }
+
+
 
         if (buffer.occupied <= 0) 
         {
-            printf("consumer WAITING.\n");            // This is strickly waiting
+            cout << "consumer " << conID << " WAITING" << endl;            // This is strickly waiting
         }
 
-        while( buffer.occupied <= 0 && prodExitted == false )
+        while( buffer.occupied <= 0 )
         {
             pthread_cond_wait( &(buffer.more), &(buffer.mutex) );            
         }
 
-            printf("consumer executing.\n");
+        cout << "consumer " << conID << " executing " << endl;
 
             /* while( conCurrItem[0] == "S" )
             {
@@ -284,6 +316,7 @@ void * consumer(void * parm)
             // Trans( conCurrItem );
             buffer.nextout %= bufferSize;
             buffer.occupied--;
+
             /* now: either buffer.occupied > 0 and buffer.nextout is the index
             of the next occupied slot in the buffer, or
             buffer.occupied == 0 and buffer.nextout is the index of the next
@@ -291,11 +324,13 @@ void * consumer(void * parm)
             buffer.nextout == buffer.nextin) */
             pthread_cond_signal(&(buffer.less)); 
             pthread_mutex_unlock(&(buffer.mutex));              // UNLOCK
+            Trans( stoi( conCurrItem ) );
             // break;                                           // with this break each consumer thread takes 1 item and that's it done exits
         
     }
     // printf("consumer exiting.\n"); 
     cout << "consumer " << conID << " exiting" << endl;
+    runningThreads--;
     pthread_exit(0);
 }
 
@@ -319,6 +354,13 @@ or there's nothing left for it to push to the buffer - only then will the consum
 
 idk if it's supposed to be like producer will put a thing, the second a thing is available the conumser
 will start to try to take thing
+
+
+
+
+
+IT BREAKS CUS AT THE END THE BUFFER IS NO LONGER BEING UPDATED, AND WITH THE FOR LOOP GONIG THROUGH THE SHARED BUFFER
+HOWEVER MANY TIMES IT KEEPS RUNNING THROUGH TH EBUFFER
 */
 int main( int argc, char *argv[] ) 
 {
