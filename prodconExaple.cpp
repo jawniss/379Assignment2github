@@ -38,6 +38,13 @@ Note that the an int member of a user-defined struct is by default initialized t
  * globalcounter++          so next htread that takes the id = command will get the next id
  * 
  * 
+ * 
+ * 
+ * 
+ * 
+ * the example output is how they run the program but idk how they're doing that
+ * Charles brought this up
+ * 
  */
 
 
@@ -297,7 +304,7 @@ void * consumer(void * parm)
             cout << "consumer " << conID << " WAITING" << endl;            // This is strickly waiting
         }
 
-        while( buffer.occupied <= 0 )
+        while( buffer.occupied <= 0 && commandsRemaining > 0 )
         {
             pthread_cond_wait( &(buffer.more), &(buffer.mutex) );            
         }
