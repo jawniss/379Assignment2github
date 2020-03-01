@@ -62,7 +62,8 @@ Note that the an int member of a user-defined struct is by default initialized t
 #include <fstream>      // std::ifstream
 #include <array>
 #include <string>
-
+#include <chrono>
+#include <iomanip>
 
 
 // #define BUFFERSIZE 3                // buffersize = 2 * number of consumers
@@ -199,6 +200,45 @@ void prodconLogFileToWriteTo( string prodconLogNumber )
 
 
 
+// https://stackoverflow.com/questions/8554441/how-to-output-with-3-digits-after-the-decimal-point-with-c-stream
+// paxdiablo for flags
+// https://stackoverflow.com/questions/29944985/is-there-a-way-to-pass-auto-as-an-argument-in-c
+// mike seymour for template t
+template <typename T>
+void printProgramRealTime( T producerStartTime, int endOfMethod )
+{
+    auto producerCommandTime = std::chrono::high_resolution_clock::now();
+    float prodDuration = std::chrono::duration_cast<std::chrono::microseconds>( producerCommandTime - producerStartTime ).count();
+
+    // Save flags/precision.
+    std::ios_base::fmtflags oldflags = std::cout.flags();
+    std::streamsize oldprecision = std::cout.precision();
+
+    float prodDurationInSeconds = prodDuration / 1000000;
+    if( endOfMethod == 1 )
+    {
+        totalTime += prodDurationInSeconds;
+        // cout << "Total TIME: " << std::setprecision(3) << std::fixed << totalTime << endl;
+
+        // after i would do totalTime / numOFCommands
+
+
+
+
+
+
+
+
+    } else {
+        cout << "METHOD TIME: " << std::setprecision(3) << std::fixed << prodDurationInSeconds << endl;
+    }
+
+    // Restore flags/precision.
+    std::cout.flags (oldflags);
+    std::cout.precision (oldprecision);
+    
+
+}
 
 
 
@@ -208,6 +248,7 @@ void prodconLogFileToWriteTo( string prodconLogNumber )
 
 
 // http://www.cplusplus.com/reference/ios/ios/eof/
+// coudl also put if c == enter
 void inputFileRedirection()
 {
     // vector<string> fullVecOfInputs;
@@ -275,6 +316,8 @@ void inputFileRedirection()
 
 void * producer( void * parm )          // idk how to pass the fullVecofInputs in to this method with the thead stuff in mains
 {
+    auto producerStartTime = std::chrono::high_resolution_clock::now();
+
     int prodID = 0;
 
     string *localBuffer = (string *) parm;
@@ -321,22 +364,56 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
         // JUST DO THE SLEEP COMMAND FUNCTION. ONLY PUSH INTO SHAREDBUFFER IF IT"S
         // A T<n>
         char currentProdArrayItem = prodArray[0].at(0);
+
+
+
+
+        // i put the time in both rather than after the if statements cus when it sleeps it eats a lotta time
         if( currentProdArrayItem == 'T' )               // how to see if first letter in string is S
         {
             cout << "T Found" << endl;
             localBuffer[buffer.nextin] = prodArray[0];
             buffer.nextin++;
             buffer.occupied++;
-        buffer.nextin %= globalUserDefinedBufferSize;
+            buffer.nextin %= globalUserDefinedBufferSize;
+//------------------------------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------------------------------
+            printProgramRealTime( producerStartTime, 0 );       // for the work recieved
+            
+            
+            // auto producerCommandTime = std::chrono::high_resolution_clock::now();
+            // auto prodDuration = std::chrono::duration_cast<std::chrono::microseconds>( producerCommandTime - producerStartTime ).count();
+            // cout << "Producer Time: " << std::fixed << std::setprecision(3) << prodDuration << endl;
+
+
+
+
+
+
         } else if ( currentProdArrayItem == 'S' ) {
             cout << "S found" << endl;
+            // auto producerCommandTime = std::chrono::high_resolution_clock::now();
+            // auto prodDuration = std::chrono::duration_cast<std::chrono::microseconds>( producerCommandTime - producerStartTime ).count();
+            // cout << "Producer Time: " << std::fixed << std::setprecision(3) << prodDuration << endl;
+
+            printProgramRealTime( producerStartTime, 0 );   // for the sleep
+
             string intOfSCommand = prodArray[0].substr( 1, prodArray.size() - 1 );
             int transTime = stoi( intOfSCommand );
             cout << "Sleeptime" << transTime << endl;
             Sleep( transTime );   
         }
 
+
+
+
+
         prodArray.erase( prodArray.begin() );
+
+
+
         cout << "stuff left in the producer arraY:" << " ";
         for( int a = 0; a < prodArray.size(); a++ )
         {
@@ -366,7 +443,8 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
         << localBuffer[1] << " " << localBuffer[2] << endl;
 
 
-
+    printProgramRealTime( producerStartTime, 1 );       // "end of input for producer" 
+    
 
 
         /*
@@ -401,6 +479,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
 
 void * consumer(void * parm)
 {
+    auto consumerStartTime = std::chrono::high_resolution_clock::now();
     int conID = threadID;
     threadID++;
 
@@ -439,7 +518,15 @@ void * consumer(void * parm)
         // HERE CONSUMER ASKS FOR WORK
         cout << "consumer " << conID << " asking for work " << endl;
 
+
+
+
+        printProgramRealTime( consumerStartTime, 0 );   // for the ask
         cout << "Buffer.occupied value " << buffer.occupied << endl;
+
+
+
+
 
 
 
@@ -494,8 +581,12 @@ void * consumer(void * parm)
             string intOfTCommand = conCurrItem.substr( 1, conCurrItem.size() - 1 );
             int transTime = stoi( intOfTCommand );
             cout << "Transtime" << transTime << endl;
+
+            printProgramRealTime( consumerStartTime, 0 );       // for the recieved
+
             Trans( transTime );
 
+            printProgramRealTime( consumerStartTime, 0 );       // for the completed
 
 
             // pthread_cond_signal(&(buffer.less)); 
@@ -511,6 +602,7 @@ void * consumer(void * parm)
     // this would be in case for some reason it reached the end of the method, failsafe
     cout << "consumer " << conID << " exiting" << endl;
     runningThreads--;
+    printProgramRealTime( consumerStartTime, 1 );
     pthread_exit(0);
 }
 
@@ -547,6 +639,17 @@ unlocks so consumer can instantly try to grab?
 
 sometimes with a lotta threads it'll work, but sometimes not. i have no idea why. like run ./prodcon 5 1 < inputs
 might not work, put ./prodcon 5 1 < inputs in again it might work, might not, might, wth
+
+
+
+i'm assuming the inputfile is with extension .txt, do i need to change it
+so it auto pends .txt to file name?
+
+
+
+
+
+my implementation of the time inludes the time it sleeps
 */
 int main( int argc, char *argv[] ) 
 {
@@ -664,5 +767,20 @@ int main( int argc, char *argv[] )
     // process to finish, including the main? if so i can throw another global variable here,
     // then put the global variable check into producer's final while loop too
     printf("\nmain() reporting that all %d threads have terminated\n", i);
+        cout << "Total TIME: " << std::setprecision(3) << std::fixed << totalTime << endl;
+
+        cout << "Transactions per second: " << std::setprecision(3) << std::fixed << numOfTCommands / totalTime << endl;
+
     return 0;
 }
+
+
+
+
+/*
+    things elft to do
+    - get each output line the same
+    - rewrite the output to file called prodcon._.log
+    - get the summary part to go
+
+*/
