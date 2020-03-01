@@ -34,6 +34,7 @@ void Trans( int n ) {
 #include <time.h>
 
 void Sleep( int n ) {
+	printf("Sleeeppy");
 	struct timespec sleep;
 
 	// Make sure pass a valid nanosecond time to nanosleep

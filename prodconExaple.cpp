@@ -241,6 +241,10 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
         buffer.nextin %= bufferSize;
         } else if ( currentProdArrayItem == 'S' ) {
             cout << "S found" << endl;
+            string intOfSCommand = prodArray[0].substr( 1, prodArray.size() - 1 );
+            int transTime = stoi( intOfSCommand );
+            cout << "Sleeptime" << transTime << endl;
+            Sleep( transTime );   
         }
 
         prodArray.erase( prodArray.begin() );
