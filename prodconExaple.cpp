@@ -64,9 +64,6 @@ Note that the an int member of a user-defined struct is by default initialized t
 #include <string>
 
 
-#include "splitTheInput.h"
-
-
 
 // #define BUFFERSIZE 3                // buffersize = 2 * number of consumers
 // #define NUMITEMS 4                  // has to be the number of elements in the producer array of stuff
@@ -192,6 +189,15 @@ void readFromFile( string fileName )
 
 
 
+void prodconLogFileToWriteTo( string prodconLogNumber )
+{
+    string logFileNamePart1 = "prodcon.";
+    string logFileNamePart2 = ".log";
+    string logFile = logFileNamePart1 + prodconLogNumber + logFileNamePart2;
+    cout << "Logfile: " << logFile << endl;
+}
+
+
 
 
 
@@ -208,9 +214,9 @@ void inputFileRedirection()
     vector<char> tempInput;
 
   char c;
-  while (cin.get(c))                  // loop getting single characters
+  while ( cin.get(c) and !cin.eof() )                  // loop getting single characters
     {
-        if( c != '\n' )              // problem is c is just one char, it'll stay here cus that 1 char never changes
+        if( c != '\n' and c != ' ')              // problem is c is just one char, it'll stay here cus that 1 char never changes
         {
             tempInput.push_back( c );                   // IT"S NOT PUSHING INTO THING
         } else {                        // hitting here means it is new line
@@ -269,7 +275,7 @@ void inputFileRedirection()
 
 void * producer( void * parm )          // idk how to pass the fullVecofInputs in to this method with the thead stuff in mains
 {
-
+    int prodID = 0;
 
     string *localBuffer = (string *) parm;
     vector<string> prodArray;
@@ -607,6 +613,18 @@ int main( int argc, char *argv[] )
     string localNonGlobalBuffer[ finalSizeOfBuffer ];
 
     
+
+
+
+    if( argc == 3 )
+    {
+        prodconLogFileToWriteTo( argv[2] );
+    } else {
+        prodconLogFileToWriteTo( "0" );
+    }
+
+
+
 
 
 
