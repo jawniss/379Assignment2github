@@ -10,11 +10,10 @@
 // TransSave is added to the wait time in Sleep -- a few billionths of a
 // second. By doing this, something "real" comes from the computation, and
 // the compiler is fooled.
-#include <stdio.h>
+
 int TransSave = 0;
 
 void Trans( int n ) {
-	printf("we in here");
 	long i, j;
 
 	// Use CPU cycles 
@@ -34,7 +33,6 @@ void Trans( int n ) {
 #include <time.h>
 
 void Sleep( int n ) {
-	printf("Sleeeppy");
 	struct timespec sleep;
 
 	// Make sure pass a valid nanosecond time to nanosleep

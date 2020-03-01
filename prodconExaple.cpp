@@ -343,16 +343,18 @@ void * consumer(void * parm)
     // printf("consumer started.\n");
     cout << "consumer " << conID << " started" << endl;
 
-    for( i = 0; i < numOfTCommands; i++ )
+    // for( i = 0; i < numOfTotalCommands; i++ )
+    while( commandsRemaining > 0 )
     {
-    cout << "consumer " << conID  << "Commands remaining " << commandsRemaining << endl;
+        cout << "consumer " << conID  << "Commands remaining " << commandsRemaining << endl;
 
         // cout << "consumer " << conID << " " << i << endl;
-        if( commandsRemaining <= 0 )
-        {
-            break;
-        }
+
+
+        cout << "consumer " << conID  << "before lock " << endl;
         pthread_mutex_lock(&(buffer.mutex) );                   // LOCK
+        cout << "consumer " << conID  << "after lock"  << endl;
+
 
         // HERE CONSUMER ASKS FOR WORK
         cout << "consumer " << conID << " asking for work " << endl;
@@ -362,7 +364,7 @@ void * consumer(void * parm)
 
 
 
-        if (buffer.occupied <= 0) 
+        if ( buffer.occupied <= 0 ) 
         {
             cout << "consumer " << conID << " WAITING" << endl;            // This is strickly waiting
         }
@@ -370,6 +372,15 @@ void * consumer(void * parm)
         while( buffer.occupied <= 0 && commandsRemaining > 0 )
         {
             pthread_cond_wait( &(buffer.more), &(buffer.mutex) );            
+        }
+
+
+        if( commandsRemaining <= 0 )
+        {
+            // break;
+            cout << "consumer " << conID << " exiting" << endl;
+            runningThreads--;
+            pthread_exit(0);
         }
 
         
@@ -425,7 +436,8 @@ void * consumer(void * parm)
             // break;                                           // with this break each consumer thread takes 1 item and that's it done exits
         
     }
-    // printf("consumer exiting.\n"); 
+
+    // this would be in case for some reason it reached the end of the method, failsafe
     cout << "consumer " << conID << " exiting" << endl;
     runningThreads--;
     pthread_exit(0);
@@ -499,7 +511,9 @@ int main( int argc, char *argv[] )
     /* array of thread IDs */
     pthread_cond_init( &(buffer.more), NULL );
     pthread_cond_init( &(buffer.less), NULL );
-    pthread_mutex_init( &buffer.mutex, NULL );
+    // pthread_mutex_init( &buffer.mutex, NULL );
+    if ( pthread_mutex_init( &buffer.mutex, NULL) != 0 )
+    printf( "mutex init failed\n" );
 
 
 

@@ -2,7 +2,7 @@ CFLAGS = -Wall -std=c++11
 
 # Linker:
 prodcon: prodconExaple.o tands.o splitTheInput.o
-	g++ prodconExaple.o tands.o splitTheInput.o $(CFLAGS) -o prodcon
+	g++ prodconExaple.o tands.o splitTheInput.o -pthread $(CFLAGS) -o prodcon
     
 # Compilation commands:
 prodconExaple.o: prodconExaple.cpp
