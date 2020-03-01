@@ -55,6 +55,7 @@ Note that the an int member of a user-defined struct is by default initialized t
 #include <iostream>
 #include <fstream>      // std::ifstream
 #include <array>
+#include <string>
 
 
 #include "splitTheInput.h"
@@ -64,17 +65,19 @@ Note that the an int member of a user-defined struct is by default initialized t
 // #define BUFFERSIZE 3                // buffersize = 2 * number of consumers
 // #define NUMITEMS 4                  // has to be the number of elements in the producer array of stuff
 const int bufferSize = 5;
-int numOfCommands = 0;
+int numOfTCommands = 0;
+int numOfTotalCommands = 0;
+
 int commandsRemaining = 0;
 
+
+
+float totalTime;
 
 
 
 int runningThreads = 0;
 
-
-
-bool firstCommand = true;
 
 
 int threadID = 1;
@@ -154,8 +157,22 @@ void readFromFile( string fileName )
     {
         cout << fullVecOfInputs[i] << endl;
     }
-    numOfCommands = fullVecOfInputs.size();
-    commandsRemaining = fullVecOfInputs.size();
+
+
+    for( int a = 0; a < fullVecOfInputs.size(); ++a )
+    {
+        if( fullVecOfInputs[a].at(0) == 'T' )
+        {
+            // cout << "T " << 
+            numOfTCommands++;
+            commandsRemaining++;
+        }
+        numOfTotalCommands++;
+    }
+
+
+    // numOfTCommands = fullVecOfInputs.size();
+    // commandsRemaining = fullVecOfInputs.size();
   is.close();                        // close file
     cout << "file done bein read" << endl;
 }
@@ -183,7 +200,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
     
     printf("producer started.\n");
     int i;
-    for( i = 0; i < numOfCommands; i++ )
+    for( i = 0; i < numOfTotalCommands; i++ )
     { /* produce an item, one character from item[] */
         if ( prodArray.size() == 0 ) 
         {
@@ -215,7 +232,17 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
         // I SHOULD PUT A IF CHECK HERE, IF THE ITEM IS START WITH S DON'T PUSH IT,
         // JUST DO THE SLEEP COMMAND FUNCTION. ONLY PUSH INTO SHAREDBUFFER IF IT"S
         // A T<n>
-        buffer.sharedBuffer[buffer.nextin] = prodArray[0];
+        char currentProdArrayItem = prodArray[0].at(0);
+        if( currentProdArrayItem == 'T' )               // how to see if first letter in string is S
+        {
+            cout << "T Found" << endl;
+            buffer.sharedBuffer[buffer.nextin] = prodArray[0];
+            buffer.nextin++;
+        buffer.nextin %= bufferSize;
+        } else if ( currentProdArrayItem == 'S' ) {
+            cout << "S found" << endl;
+        }
+
         prodArray.erase( prodArray.begin() );
         cout << "stuff left in the producer arraY:" << " ";
         for( int a = 0; a < prodArray.size(); a++ )
@@ -223,9 +250,16 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
             cout << prodArray[a] << " ";
         }
         cout << endl;
-        buffer.nextin++;
-        buffer.nextin %= bufferSize;
+        // buffer.nextin++;
+        // buffer.nextin %= bufferSize;
+
+
+
         buffer.occupied++;
+
+
+
+        
         /* now: either buffer.occupied < BUFFERSIZE and buffer.nextin is the index
          of the next empty slot in the buffer, or
          buffer.occupied == BUFFERSIZE and buffer.nextin is the index of the
@@ -282,7 +316,7 @@ void * consumer(void * parm)
     // printf("consumer started.\n");
     cout << "consumer " << conID << " started" << endl;
 
-    for( i = 0; i < numOfCommands + 10; i++ )
+    for( i = 0; i < numOfTCommands; i++ )
     {
         cout << "consumer " << conID << " " << i << endl;
         if( commandsRemaining == 0 )
@@ -337,7 +371,12 @@ void * consumer(void * parm)
             buffer.nextout == buffer.nextin) */
             pthread_cond_signal(&(buffer.less)); 
             pthread_mutex_unlock(&(buffer.mutex));              // UNLOCK
-            Trans( stoi( conCurrItem ) );
+
+            string intOfTCommand = conCurrItem.substr( 1, conCurrItem.size() - 1 );
+            int transTime = stoi( intOfTCommand );
+            cout << "Transtime" << transTime << endl;
+            Trans( transTime );                        // i gotta put in the parse then do thing
+            // prolly can just do what i did for the producer, char ____ = conCurrItem.at(1)
         cout << "consumer " << conID << " finished trans " << endl;
             // break;                                           // with this break each consumer thread takes 1 item and that's it done exits
         
@@ -373,8 +412,8 @@ will start to try to take thing
 
 
 
-IT BREAKS CUS AT THE END THE BUFFER IS NO LONGER BEING UPDATED, AND WITH THE FOR LOOP GONIG THROUGH THE SHARED BUFFER
-HOWEVER MANY TIMES IT KEEPS RUNNING THROUGH TH EBUFFER
+At the start producer has lock control until the entire buffer is full - should try to make it so it puts 1 then
+unlocks so consumer can instantly try to grab?
 */
 int main( int argc, char *argv[] ) 
 {
@@ -439,6 +478,10 @@ int main( int argc, char *argv[] )
     for ( i = 0; i < numOfThreads; i++)  
         pthread_join(tid[i], NULL);                         // must be something here with the 2 consumers
 
+
+    // Should i hav this before the producer finishes? like do they mean producer should be th eabssolute final
+    // process to finish, including the main? if so i can throw another global variable here,
+    // then put the global variable check into producer's final while loop too
     printf("\nmain() reporting that all %d threads have terminated\n", i);
     return 0;
 }
