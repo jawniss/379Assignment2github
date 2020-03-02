@@ -1,67 +1,3 @@
-/*
-buffer using mutex and condition variables. There is a single producer and a single consumer. 
-The producer has 6 items, each being a character in the string “HELLO.” it declares at the 
-beginning of the producer thread. The producer inserts these 6 items one by one into the 
-buffer which can only hold up to 3 items. These items will be inserted into the 3 buffer 
-positions following the order 0, 1, 2, 0, 1, 2... If the buffer is full at some point, the 
-producer will wait for the consumer to retrieve items until an empty position appears. Then 
-the producer can continue. On the other hand, the consumer retrieves and prints items from 
-the buffer positions 0, 1, 2, 0, 1, 2,... until there is nothing to be read, at which point, 
-it will wait for a new item to be deposited by the producer to proceed. 
-
-Note that the an int member of a user-defined struct is by default initialized to 0.
-*/
-
-
-
-/**
- * 
- * I think so it takes the T<5> 
- *                          T<2>
- * 
- * so i can take each int, put them into an array buffer
- * then it'll take one by one th ebuffer items, like in this
- * where the buffer holds "HELLO." but instead we'll do buffer holding integers
- * 
- * maybe i can simply change this from the consumers from doign wheatver they're doing with
- * the char array, to then go into the trans function
- * or no first do the same thing - grab an item from the nunber array
- *  then input that number into the trans function
- *      - will have to find a way to make the consumer exit from taking
- *          stuff from array and do trans, cus rn i think
- *          the consumers take a thing, then keep taking,
- *          not just take one and leave type of deal
- * 
- * for the ID of the thread, maybe I can make a global "ID[NUMBER OF THREADS]" array
- * and each thread will access it using a global counter and it will be assigned 
- * ID = ID[globealcounter]
- * globalcounter++          so next htread that takes the id = command will get the next id
- * 
- * 
- * 
- * 
- * 
- * 
- * the example output is how they run the program but idk how they're doing that
- * Charles brought this up
- * 
- * 
- * 
- * 
- * BUFFER.OCCUPIED CAN BE USED AS THE "Q" VALUE: BUFFER.OCCUPIED IS EQUIVILANT TO 
- * HOW MANY ITEMS CURRENTLY IN THE BUFFER
- * 
- * 
- * 
- * 
- * 
- * i chose to use mutex cus it's super straightforwad looking - if a thread is tryna
- * use an area, lock it. simple
- * 
- */
-
-
-
 #include <pthread.h>
 #include <stdio.h>
 #include <vector>
@@ -288,7 +224,7 @@ void * consumer(void * parm)
             cout << "   ";
             printProgramRealTime( consumerStartTime, 0 );
             cout << " " << "ID= " << conID << "      " << "Ask" << endl;
-
+            numOfConsumerAsks++;
             pthread_exit(0);
         }
 
@@ -314,6 +250,7 @@ void * consumer(void * parm)
             cout << "   ";
             printProgramRealTime( consumerStartTime, 0 );
             cout << " " << "ID= " << conID << "      " << "Ask" << endl;
+            numOfConsumerAsks++;
 
             pthread_exit(0);
         }
@@ -355,32 +292,11 @@ void * consumer(void * parm)
     cout << "   ";
     printProgramRealTime( consumerStartTime, 0 );
     cout << " " << "ID= " << conID << "      " << "Ask" << endl;
+    numOfConsumerAsks++;
 
     printProgramRealTime( consumerStartTime, 1 );                  // Consumer should never reach here because it should've
     pthread_exit(0);                                               // exitted before, but just in case
 }
-
-/*
-the way this prod con system works is the prod will keep tryna put things into the buffer till either the buffer's full
-or there's nothing left for it to push to the buffer - only then will the consumer start to work
-
-idk if it's supposed to be like producer will put a thing, the second a thing is available the conumser
-will start to try to take thing
-
-
-
-
-sometimes with a lotta threads it'll work, but sometimes not. i have no idea why. like run ./prodcon 5 1 < inputs
-might not work, put ./prodcon 5 1 < inputs in again it might work, might not, might, wth
-
-
-
-i'm assuming the inputfile is with extension .txt, do i need to change it
-so it auto pends .txt to file name?
-
-
-my implementation of the time inludes the time it sleeps
-*/
 
 
 /**
