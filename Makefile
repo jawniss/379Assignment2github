@@ -13,7 +13,7 @@ tands.o: tands.c
 
 
 clean:
-	@rm -rf prodcon prodconExaple.o tands.o prodcon
+	@rm -rf prodcon prodconExaple.o tands.o prodcon *.log
 
 
 # Important: make sure you provide a way in your 
