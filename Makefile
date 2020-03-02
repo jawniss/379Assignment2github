@@ -2,6 +2,7 @@ CFLAGS = -Wall -std=c++11
 
 all: prodcon
 optimization: prodconOptimization
+debugging: prodconDebug
 
 # Linker:
 prodcon: prodconExaple.o tands.o
@@ -9,6 +10,9 @@ prodcon: prodconExaple.o tands.o
 
 prodconOptimization: prodconExaple.o tands.o
 	g++ prodconExaple.o tands.o -pthread -O $(CFLAGS) -o prodcon
+
+prodconDebug: prodconExaple.o tands.o
+	g++ prodconExaple.o tands.o -pthread -g $(CFLAGS) -o prodcon
     
 # Compilation commands:
 prodconExaple.o: prodconExaple.cpp
