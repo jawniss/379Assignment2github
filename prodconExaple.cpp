@@ -191,12 +191,13 @@ void readFromFile( string fileName )
 
 
 
-void prodconLogFileToWriteTo( string prodconLogNumber )
+string prodconLogFileToWriteTo( string prodconLogNumber )
 {
     string logFileNamePart1 = "prodcon.";
     string logFileNamePart2 = ".log";
     string logFile = logFileNamePart1 + prodconLogNumber + logFileNamePart2;
-    cout << "Logfile: " << logFile << endl;
+    // cout << "Logfile: " << logFile << endl;
+    return logFile;
 }
 
 
@@ -781,6 +782,27 @@ int main( int argc, char *argv[] )
     pthread_mutex_unlock(&(buffer.mutex));              // done readin from file
 
 
+    string fileName;
+    if( argc == 3 )
+    {
+        fileName = prodconLogFileToWriteTo( argv[2] );
+    } else {
+        fileName = prodconLogFileToWriteTo( "0" );
+    }
+
+    /*
+https://stackoverflow.com/questions/10150468/how-to-redirect-cin-and-cout-to-files
+Nawaz
+    */
+
+    ofstream out( fileName );
+    std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
+    std::cout.rdbuf(out.rdbuf()); //redirect std::cout to out.txt!
+
+
+
+
+
     int userDefinedBufferSize = stoi( argv[1] );
 
 
@@ -795,12 +817,7 @@ int main( int argc, char *argv[] )
 
 
 
-    if( argc == 3 )
-    {
-        prodconLogFileToWriteTo( argv[2] );
-    } else {
-        prodconLogFileToWriteTo( "0" );
-    }
+    
 
 
 
@@ -872,11 +889,12 @@ int main( int argc, char *argv[] )
     {
         cout << "    Thread  " << i << "    " << completedConsumerTasks[i] << endl;;
     }
-        cout << "Transactions per second: " << std::setprecision(3) << std::fixed << numOfTCommands / totalTime << endl;
+        cout << "Transactions per second: " << std::setprecision( 2 ) << std::fixed << numOfTCommands / totalTime << endl;
 
 
 
     producerThreadCanExit = true;
+    std::cout.rdbuf(coutbuf); //reset to standard output again
     return 0;
 }
 
