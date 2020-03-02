@@ -167,13 +167,9 @@ void inputFileRedirection()
 {
     vector<char> tempInput;
     char c;
-    while ( cin.get(c) and !cin.eof() )
+    while ( cin.get(c) )
     {
-        if( cin.eof() )     // I have an issue where "CTRL+D" needs to be inputted twice, I thought this would help
-        {
-            break;
-        }
-        if( c != '\n' and c != ' ' and !cin.eof() )
+        if( c != '\n' and c != ' ' )
         {
             tempInput.push_back( c );
         } else {
@@ -374,13 +370,6 @@ will start to try to take thing
 
 
 
-
-At the start producer has lock control until the entire buffer is full - should try to make it so it puts 1 then
-unlocks so consumer can instantly try to grab?
-
-
-
-
 sometimes with a lotta threads it'll work, but sometimes not. i have no idea why. like run ./prodcon 5 1 < inputs
 might not work, put ./prodcon 5 1 < inputs in again it might work, might not, might, wth
 
@@ -390,188 +379,85 @@ i'm assuming the inputfile is with extension .txt, do i need to change it
 so it auto pends .txt to file name?
 
 
-
-
-
 my implementation of the time inludes the time it sleeps
 */
+
+
+/**
+ * Main function
+ * 
+ * @param argc Number of command line arguments
+ * @param argv The actual command line arguments
+ */
 int main( int argc, char *argv[] ) 
 {
+    pthread_mutex_lock( &(buffer.mutex) );            // Lock while reading inputs just in case
 
-    // cout << argv[1] << argv[2]<< argv[3] << endl;
-    // i can do the if argc == 3 (means prodcon 3 1)
-    // i still gotta do keybaord inputs
-
-
-
-    // string prodconInputCommand;
-    // getline( cin, prodconInputCommand );
-    // vector<string> separatedInput = splitInputCommand( prodconInputCommand );
-
-    // if( separatedInput.size() == 2 )
-    // {
-    //     cout << "two" << endl;
-    //     separatedInput.push_back("0");                // sets the default ID of log file to 0, later will hav to to intToString(sepInput[2])
-    // }
-
-
-    // try to delete the buffer.sharedBuffer and make the new size of it?
-
-
-
-
-
-    pthread_mutex_lock( &(buffer.mutex) );            // i wanna lock while it's reading from file just in case
-
-
-
-    // string fileName;
-
-
-    // int prodConSize = argc;
-    
-
-
-
-
-
-
-    // fileName = "exampleInput.txt";
-    // cout << fileName <<  " saf"<< endl;
-
-
-
-    // readFromFile( fileName );
     inputFileRedirection();
 
-
-
-    pthread_mutex_unlock(&(buffer.mutex));              // done readin from file
-
+    pthread_mutex_unlock(&(buffer.mutex));            // Unlock
 
     string fileName;
     if( argc == 3 )
     {
-        fileName = prodconLogFileToWriteTo( argv[2] );
+        fileName = prodconLogFileToWriteTo( argv[2] );  // 3 arguments, ex "./prodcon 3 1 < inputexample"
     } else {
-        fileName = prodconLogFileToWriteTo( "0" );
+        fileName = prodconLogFileToWriteTo( "0" );      // Only 2 arguments, ex "./prodcon 3 < inputexample"
     }
 
-    /*
-https://stackoverflow.com/questions/10150468/how-to-redirect-cin-and-cout-to-files
-Nawaz
+    /**
+     * https://stackoverflow.com/questions/10150468/how-to-redirect-cin-and-cout-to-files
+     * User "Nawaz" on how to do file output redirection
     */
 
     ofstream out( fileName );
-    std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
-    std::cout.rdbuf(out.rdbuf()); //redirect std::cout to out.txt!
-
-
-
-
+    std::streambuf *coutbuf = std::cout.rdbuf();            //save old buf
+    std::cout.rdbuf(out.rdbuf());                           //redirect std::cout to fileName
 
     int userDefinedBufferSize = stoi( argv[1] );
 
-
-    const int finalSizeOfBuffer = userDefinedBufferSize * 2;
+    const int finalSizeOfBuffer = userDefinedBufferSize * 2;        // Buffer size is twice the number of consumer threads
     globalUserDefinedBufferSize = finalSizeOfBuffer;
-
-
 
     string localNonGlobalBuffer[ finalSizeOfBuffer ];
 
-    
-
-
-
-    
-
-
-
-
-
-
-
     int i;
-    /* array of thread IDs */
+
     pthread_cond_init( &(buffer.more), NULL );
     pthread_cond_init( &(buffer.less), NULL );
-    // pthread_mutex_init( &buffer.mutex, NULL );
     if ( pthread_mutex_init( &buffer.mutex, NULL) != 0 )
     printf( "mutex init failed\n" );
 
-
-
-    // i can actually define how many threads from the user here
-    // int numOfThreads = stoi(separatedInput[1]);           // it looks like this actually makes as many threads as needed
     int numOfThreads = stoi(argv[1]); 
-    pthread_t tid[numOfThreads];         // thread id?
+    pthread_t tid[numOfThreads];
 
+    completedConsumerTasks.resize( numOfThreads );          // Double check size of "tasks completed by each thread" vector
 
-
-
-
-
-    completedConsumerTasks.resize( numOfThreads );          
-
-
-
-
-    
-
-
-    // pthread_create(&tid[1], NULL, consumer, NULL);          // 'consumer' is the method that the thread will start at
-    pthread_create(&tid[0], NULL, producer, localNonGlobalBuffer );          // but theres 2 consumers no? why only 1 consumer create? unless &tid[1] makes 2? [0] then [1]?   
-    
+    pthread_create(&tid[0], NULL, producer, localNonGlobalBuffer );          // Create producer thread
     
     for( int a = 0; a < numOfThreads; ++a )
     {
-        pthread_create(&tid[a], NULL, consumer, localNonGlobalBuffer );          // 'consumer' is the method that the thread will start at
+        pthread_create(&tid[a], NULL, consumer, localNonGlobalBuffer );          // Create consumer threads
     }
     
-
     for ( i = 0; i < numOfThreads; i++)
-        pthread_join(tid[i], NULL);                         // must be something here with the 2 consumers
-
-
-    // Should i hav this before the producer finishes? like do they mean producer should be th eabssolute final
-    // process to finish, including the main? if so i can throw another global variable here,
-    // then put the global variable check into producer's final while loop too
-    // printf("\nmain() reporting that all %d threads have terminated\n", i);
-        // cout << "Total TIME: " << std::setprecision(3) << std::fixed << totalTime << endl;
-        // cout << "Transactions per second: " << std::setprecision(3) << std::fixed << numOfTCommands / totalTime << endl;
-
+        pthread_join(tid[i], NULL);                         // Join all threads
 
     cout << "Summary: " << endl;
     cout << "    Work         " << numOfTCommands << endl;
     cout << "    Ask          " << numOfConsumerAsks << endl;
-    cout << "    Recieve      " << numOfTCommands << endl;                        // if it reaches here in the program, all tasks were completed
+    cout << "    Recieve      " << numOfTCommands << endl;                 // If it reaches here in the program, all tasks were completed
     cout << "    Complete     " << numOfTCommands << endl;
     cout << "    Sleep        " << numOfTotalCommands - numOfTCommands << endl;
-    // for( int i = 1; i <= numOfThreads; ++i )
-    // {
-    //     cout << "    Thread  " << i << "    " << completedConsumerTasks[i] << endl;;
-    // }
+
     for( int i = 1; i <= numOfThreads; ++i )
     {
         cout << "    Thread  " << i << "    " << completedConsumerTasks[i] << endl;;
     }
-        cout << "Transactions per second: " << std::setprecision( 2 ) << std::fixed << numOfTCommands / totalTime << endl;
 
-
+    cout << "Transactions per second: " << std::setprecision( 2 ) << std::fixed << numOfTCommands / totalTime << endl;
 
     producerThreadCanExit = true;
     std::cout.rdbuf(coutbuf); //reset to standard output again
     return 0;
 }
-
-
-
-
-/*
-    things elft to do
-    - get each output line the same
-    - rewrite the output to file called prodcon._.log
-    - get the summary part to go
-
-*/

@@ -5,24 +5,24 @@ optimization: prodconOptimization
 debugging: prodconDebug
 
 # Linker:
-prodcon: prodconExaple.o tands.o
-	g++ prodconExaple.o tands.o -pthread $(CFLAGS) -o prodcon
+prodcon: ProducerConsumerProblem.o tands.o
+	g++ ProducerConsumerProblem.o tands.o -pthread $(CFLAGS) -o prodcon
 
-prodconOptimization: prodconExaple.o tands.o
-	g++ prodconExaple.o tands.o -pthread -O $(CFLAGS) -o prodcon
+prodconOptimization: ProducerConsumerProblem.o tands.o
+	g++ ProducerConsumerProblem.o tands.o -pthread -O $(CFLAGS) -o prodcon
 
-prodconDebug: prodconExaple.o tands.o
-	g++ prodconExaple.o tands.o -pthread -g $(CFLAGS) -o prodcon
+prodconDebug: ProducerConsumerProblem.o tands.o
+	g++ ProducerConsumerProblem.o tands.o -pthread -g $(CFLAGS) -o prodcon
     
 # Compilation commands:
-prodconExaple.o: prodconExaple.cpp
-	g++ -c prodconExaple.cpp $(CFLAGS) -o prodconExaple.o
+ProducerConsumerProblem.o: ProducerConsumerProblem.cpp
+	g++ -c ProducerConsumerProblem.cpp $(CFLAGS) -o ProducerConsumerProblem.o
 
 tands.o: tands.c
 	g++ -c tands.c $(CFLAGS) -o tands.o
 
 clean:
-	@rm -rf prodcon prodconExaple.o tands.o prodcon *.log
+	@rm -rf prodcon ProducerConsumerProblem.o tands.o prodcon *.log
 
 
 # Important: make sure you provide a way in your 
