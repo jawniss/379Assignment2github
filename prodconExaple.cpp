@@ -75,12 +75,14 @@ int numOfTotalCommands = 0;
 int commandsRemaining = 0;
 int globalUserDefinedBufferSize = 0;        // cus the other const version can't be passed
 
+int numOfConsumerAsks;
+
 
 
 float totalTime = 0.000;
 
 
-
+bool producerThreadCanExit = false;
 int runningThreads = 0;
 
 
@@ -117,7 +119,7 @@ vector<string> fullVecOfInputs;         // global vector for now cus idk how to 
 
 
 
-
+vector<int> completedConsumerTasks;
 
 
 
@@ -265,15 +267,15 @@ void inputFileRedirection()
     // here at end i might have to do one more tempstring push to fullvecofinputs cus 
     // i think it skips the last time doing it
     std::string tempString(tempInput.begin(), tempInput.end());
-    cout << "tempstring " << tempString << endl;
+    // cout << "tempstring " << tempString << endl;
     fullVecOfInputs.push_back( tempString );
     tempInput.clear();
 
 
-    for( int i = 0; i < fullVecOfInputs.size(); ++i )
-    {
-        cout << fullVecOfInputs[i] << endl;
-    }
+    // for( int i = 0; i < fullVecOfInputs.size(); ++i )
+    // {
+    //     cout << fullVecOfInputs[i] << endl;
+    // }
 
 
     for( int a = 0; a < fullVecOfInputs.size(); ++a )
@@ -286,7 +288,7 @@ void inputFileRedirection()
         }
         numOfTotalCommands++;
     }
-    cout << "finput file datekn" << endl;
+    // cout << "finput file datekn" << endl;
 }
 
 
@@ -330,7 +332,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
     { /* produce an item, one character from item[] */
         if ( prodArray.size() == 0 ) 
         {
-            cout << "prodArray size is 0" << endl;
+            // cout << "prodArray size is 0" << endl;
             break;  /* Quit if at end of string. */
         }
 
@@ -375,7 +377,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
 //------------------------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------
-            
+            cout << "   ";
             printProgramRealTime( producerStartTime, 0 );       // for the work recieved'
             cout << " " << "ID= " << prodID << " " << "Q= " << buffer.occupied << " " << "Work       " << prodArray[0].substr( 1, prodArray.size() - 1 ) << endl;
             
@@ -395,6 +397,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
             // auto prodDuration = std::chrono::duration_cast<std::chrono::microseconds>( producerCommandTime - producerStartTime ).count();
             // cout << "Producer Time: " << std::fixed << std::setprecision(3) << prodDuration << endl;
 
+            cout << "   ";
             printProgramRealTime( producerStartTime, 0 );   // for the sleep
             cout << " " << "ID= " << prodID << "     " << " " << "Sleep      " << prodArray[0].substr( 1, prodArray.size() - 1 ) << endl;
 
@@ -451,7 +454,7 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
         SO I THINK I SHOULD BUSY WAIT HERE WHILE CONSUMERS STILL RUNNING
         MAKE ANOTHER LGOBAL VARIABLE COUNTER, IF == 0 THEN EXIT PRODUCER
         */
-    while( runningThreads > 0 )
+    while( runningThreads > 0 or producerThreadCanExit == false )
     {
 
     }
@@ -483,7 +486,7 @@ void * consumer(void * parm)
     threadID++;
 
     string *localBuffer = (string *) parm;
-
+    int completedTasks = 0;
 
 
     runningThreads++;
@@ -503,23 +506,49 @@ void * consumer(void * parm)
 
 
         // cout << "consumer " << conID  << "before lock " << endl;
+
+
+
+
+
+
         if( commandsRemaining <= 0 )
         {
             // break;
             // cout << "consumer " << conID << " exiting" << endl;
             runningThreads--;
             printProgramRealTime( consumerStartTime, 1 );
+            // cout << "Con " << conID << "Compleeted " << completedTasks;
+            //  completedConsumerTasks[ conID ].push_back( completedTasks );
+            // completedConsumerTasks[ conID ].push_back( completedTasks );
+
+            // completedConsumerTasks[ conID ][ 1 ] = completedTasks;
+            // completedConsumerTasks.insert( completedConsumerTasks.begin() + conID, completedTasks );
+    completedConsumerTasks[ conID ] = completedTasks;
+        cout << "   ";
+        printProgramRealTime( consumerStartTime, 0 );
+        cout << " " << "ID= " << conID << "      " << "Ask" << endl;
+
+
+
             pthread_exit(0);
         }
+
+
+
+
+
+
         pthread_mutex_lock( &(buffer.mutex) );                   // LOCK
         // cout << "consumer " << conID  << "after lock"  << endl;
 
 
         // HERE CONSUMER ASKS FOR WORK
         // cout << "consumer " << conID << " asking for work " << endl;
+        cout << "   ";
         printProgramRealTime( consumerStartTime, 0 );
         cout << " " << "ID= " << conID << "      " << "Ask" << endl;
-
+        numOfConsumerAsks++;
 
 
 
@@ -533,10 +562,10 @@ void * consumer(void * parm)
 
 
 
-        if ( buffer.occupied <= 0 ) 
-        {
-            // cout << "consumer " << conID << " WAITING" << endl;            // This is strickly waiting
-        }
+        // if ( buffer.occupied <= 0 ) 
+        // {
+        //     // cout << "consumer " << conID << " WAITING" << endl;            // This is strickly waiting
+        // }
 
         while( buffer.occupied <= 0 && commandsRemaining > 0 )
         {
@@ -550,6 +579,21 @@ void * consumer(void * parm)
             // cout << "consumer " << conID << " exiting" << endl;
             runningThreads--;
             printProgramRealTime( consumerStartTime, 1 );
+            // cout << "Con " << conID << "Compleeted " << completedTasks;
+
+            // completedConsumerTasks[ conID ].push_back( completedTasks );
+            // completedConsumerTasks[ conID ][ 1 ] = completedTasks;
+            // completedConsumerTasks[ conID ].push_back( completedTasks );
+            // completedConsumerTasks[ conID ][ 1 ] = completedTasks;
+            // completedConsumerTasks.insert( completedConsumerTasks.begin() + conID, completedTasks );
+    completedConsumerTasks[ conID ] = completedTasks;
+    cout << "   ";
+        printProgramRealTime( consumerStartTime, 0 );
+        cout << " " << "ID= " << conID << "      " << "Ask" << endl;
+
+
+
+
             pthread_exit(0);
         }
 
@@ -567,8 +611,9 @@ void * consumer(void * parm)
                 commandsWaitingInBuffer = buffer.occupied;
             }
 
+            cout << "   ";
             printProgramRealTime( consumerStartTime, 0 );
-            cout << " " << "ID= " << conID << " " << "Q= " << commandsWaitingInBuffer << " " << "Recieve    " << conCurrItem.at(1) << endl;
+            cout << " " << "ID= " << conID << " " << "Q= " << commandsWaitingInBuffer << " " << "Recieve    " << conCurrItem.substr( 1, conCurrItem.size() -1 ) << endl;
 
             buffer.nextout %= globalUserDefinedBufferSize;
             buffer.occupied--;
@@ -588,7 +633,6 @@ void * consumer(void * parm)
 
 
 
-
             pthread_cond_signal(&(buffer.less)); 
             pthread_mutex_unlock(&(buffer.mutex));                         // UNLOCK
 
@@ -600,8 +644,10 @@ void * consumer(void * parm)
 
             Trans( transTime );
 
+            cout << "   ";
             printProgramRealTime( consumerStartTime, 0 );       // for the completed
-            cout << " " << "ID= " << conID << "      " << "Complete   " << conCurrItem.at(1) << endl;
+            cout << " " << "ID= " << conID << "      " << "Complete   " << conCurrItem.substr( 1, conCurrItem.size() - 1 ) << endl;
+            completedTasks++;
 
 
             // pthread_cond_signal(&(buffer.less)); 
@@ -617,6 +663,21 @@ void * consumer(void * parm)
     // this would be in case for some reason it reached the end of the method, failsafe
     // cout << "consumer " << conID << " exiting" << endl;
     runningThreads--;
+
+
+    // vector<int> tempCompletedConTasksitem( conID, completedTasks );
+    // cout << "Con " << conID << "Compleeted " << completedTasks;
+    // completedConsumerTasks[ conID ].push_back( completedTasks );
+    // completedConsumerTasks[ conID ][ 1 ] = completedTasks;
+            // completedConsumerTasks[ conID ].push_back( completedTasks );
+            // completedConsumerTasks[ conID ][ 1 ] = completedTasks;
+    // completedConsumerTasks.insert( completedConsumerTasks.begin() + conID, completedTasks );
+    completedConsumerTasks[ conID ] = completedTasks;
+cout << "   ";
+        printProgramRealTime( consumerStartTime, 0 );
+        cout << " " << "ID= " << conID << "      " << "Ask" << endl;
+
+
     printProgramRealTime( consumerStartTime, 1 );
     pthread_exit(0);
 }
@@ -761,6 +822,17 @@ int main( int argc, char *argv[] )
     // int numOfThreads = stoi(separatedInput[1]);           // it looks like this actually makes as many threads as needed
     int numOfThreads = stoi(argv[1]); 
     pthread_t tid[numOfThreads];         // thread id?
+
+
+
+
+
+
+    completedConsumerTasks.resize( numOfThreads );          
+
+
+
+
     
 
 
@@ -781,10 +853,30 @@ int main( int argc, char *argv[] )
     // Should i hav this before the producer finishes? like do they mean producer should be th eabssolute final
     // process to finish, including the main? if so i can throw another global variable here,
     // then put the global variable check into producer's final while loop too
-    printf("\nmain() reporting that all %d threads have terminated\n", i);
-        cout << "Total TIME: " << std::setprecision(3) << std::fixed << totalTime << endl;
+    // printf("\nmain() reporting that all %d threads have terminated\n", i);
+        // cout << "Total TIME: " << std::setprecision(3) << std::fixed << totalTime << endl;
+        // cout << "Transactions per second: " << std::setprecision(3) << std::fixed << numOfTCommands / totalTime << endl;
+
+
+    cout << "Summary: " << endl;
+    cout << "    Work         " << numOfTCommands << endl;
+    cout << "    Ask          " << numOfConsumerAsks << endl;
+    cout << "    Recieve      " << numOfTCommands << endl;                        // if it reaches here in the program, all tasks were completed
+    cout << "    Complete     " << numOfTCommands << endl;
+    cout << "    Sleep        " << numOfTotalCommands - numOfTCommands << endl;
+    // for( int i = 1; i <= numOfThreads; ++i )
+    // {
+    //     cout << "    Thread  " << i << "    " << completedConsumerTasks[i] << endl;;
+    // }
+    for( int i = 1; i <= numOfThreads; ++i )
+    {
+        cout << "    Thread  " << i << "    " << completedConsumerTasks[i] << endl;;
+    }
         cout << "Transactions per second: " << std::setprecision(3) << std::fixed << numOfTCommands / totalTime << endl;
 
+
+
+    producerThreadCanExit = true;
     return 0;
 }
 
