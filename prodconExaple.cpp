@@ -51,6 +51,13 @@ Note that the an int member of a user-defined struct is by default initialized t
  * BUFFER.OCCUPIED CAN BE USED AS THE "Q" VALUE: BUFFER.OCCUPIED IS EQUIVILANT TO 
  * HOW MANY ITEMS CURRENTLY IN THE BUFFER
  * 
+ * 
+ * 
+ * 
+ * 
+ * i chose to use mutex cus it's super straightforwad looking - if a thread is tryna
+ * use an area, lock it. simple
+ * 
  */
 
 
@@ -59,153 +66,73 @@ Note that the an int member of a user-defined struct is by default initialized t
 #include <stdio.h>
 #include <vector>
 #include <iostream>
-#include <fstream>      // std::ifstream
+#include <fstream>
 #include <array>
 #include <string>
 #include <chrono>
 #include <iomanip>
 
 
-// #define BUFFERSIZE 3                // buffersize = 2 * number of consumers
-// #define NUMITEMS 4                  // has to be the number of elements in the producer array of stuff
-const int bufferSize = 5;
-int numOfTCommands = 0;
-int numOfTotalCommands = 0;
+int numOfTCommands = 0;                     // Number of T<n> commands
+int numOfTotalCommands = 0;                 // Number of T<n> and S<n> commands
+int commandsRemaining = 0;                  // Commands left to execute (T<n> and S<n>)
+int globalUserDefinedBufferSize = 0;        // Buffer size
+int numOfConsumerAsks;                      // Number of asks made by all consumers
 
-int commandsRemaining = 0;
-int globalUserDefinedBufferSize = 0;        // cus the other const version can't be passed
+float totalTime = 0.000;                    // Total real runtime
 
-int numOfConsumerAsks;
+bool producerThreadCanExit = false;         // Bool for if the producer thread can terminate as it must be the last
+int runningConsumerThreads = 0;             // Number of still actively running Consumer threads
 
-
-
-float totalTime = 0.000;
-
-
-bool producerThreadCanExit = false;
-int runningThreads = 0;
-
-
-
-int threadID = 1;
+int threadID = 1;                           // Thread ID for the consumers
 
 using namespace std;
 
-
-void Trans( int n );                // forward declarations of the functions without using header file cus assign
-void Sleep( int n );                // says not to modify tands.c which i have to mod to #include "tands.h"
-
+void Trans( int n );                        // Forward declarations of the provided functions without using header file
+void Sleep( int n );
 
 typedef struct {
-    int occupied;                   // counting semaphore
-    int nextin, nextout;            // think these are the variables saying which item is to be nextin, nextout
-    pthread_mutex_t mutex;
-    pthread_cond_t more;            // i think more and less is like 'theres more in the buffer now' or 
-    pthread_cond_t less;            // now there's less items cus one was taken
+    int numOfBufferItems;                   // Counter of how many items currently in the buffer
+    int nextin, nextout;                    // Index of which buffer item is next to be taken out
+    pthread_cond_t more;                    // Indicates there's more items in the buffer now
+    pthread_cond_t less;                    // Indicates there's less items in the buffer now
+    pthread_mutex_t mutex;                  // Mutual exclusion lock
 } buffer_t;
 
-
-
 buffer_t buffer;
-void * producer(void *);
-void * consumer(void *);
-// #define NUM_THREADS 3               // it looks like this actually makes as many threads as needed
-// pthread_t tid[NUM_THREADS];         // thread id?
 
 
-vector<string> fullVecOfInputs;         // global vector for now cus idk how to pass it into producer with th way producer used by thread
-                                        // initialisation in the main
+vector<string> fullVecOfInputs;             // Inputted commands (T<n> and S<n>) that will be given to producer to read from
+
+vector<int> completedConsumerTasks;         // Vector to keep track of how many tasks each consumer completed
 
 
-
-
-vector<int> completedConsumerTasks;
-
-
-
-
-/*
-// http://www.cplusplus.com/reference/ios/ios/eof/
-void readFromFile( string fileName )
-{
-    cout << "reading" << endl;
-    ifstream is( fileName );   // open file
-    // vector<string> fullVecOfInputs;
-    vector<char> tempInput;
-
-  char c;
-  while (is.get(c))                  // loop getting single characters
-    {
-        if( c != '\n' )              // problem is c is just one char, it'll stay here cus that 1 char never changes
-        {
-            tempInput.push_back( c );                   // IT"S NOT PUSHING INTO THING
-        } else {                        // hitting here means it is new line
-            std::string tempString(tempInput.begin(), tempInput.end());
-            // cout << "tempstring " << tempString << endl;
-            fullVecOfInputs.push_back( tempString );
-            tempInput.clear();
-        }
-    }
-    // here at end i might have to do one more tempstring push to fullvecofinputs cus 
-    // i think it skips the last time doing it
-    std::string tempString(tempInput.begin(), tempInput.end());
-    cout << "tempstring " << tempString << endl;
-    fullVecOfInputs.push_back( tempString );
-    tempInput.clear();
-
-  if ( is.eof() )                      // check for EOF
-    cout << "[EoF reached]\n";
-  else
-    cout << "[error reading]\n";
-
-
-    for( int i = 0; i < fullVecOfInputs.size(); ++i )
-    {
-        cout << fullVecOfInputs[i] << endl;
-    }
-
-
-    for( int a = 0; a < fullVecOfInputs.size(); ++a )
-    {
-        if( fullVecOfInputs[a].at(0) == 'T' )
-        {
-            // cout << "T " << 
-            numOfTCommands++;
-            commandsRemaining++;
-        }
-        numOfTotalCommands++;
-    }
-
-
-    // numOfTCommands = fullVecOfInputs.size();
-    // commandsRemaining = fullVecOfInputs.size();
-  is.close();                        // close file
-    cout << "file done bein read" << endl;
-}
-*/
-
-
-
-
-
-
-
-
+/**
+ * Function to get the desired log file number and make the full name of the file
+ * 
+ * @param prodconLogNumber The number the prodcon output file is to have (taken from the command line arguments)
+ * @return logFile The concatenated name of the logfile
+ */
 string prodconLogFileToWriteTo( string prodconLogNumber )
 {
     string logFileNamePart1 = "prodcon.";
     string logFileNamePart2 = ".log";
     string logFile = logFileNamePart1 + prodconLogNumber + logFileNamePart2;
-    // cout << "Logfile: " << logFile << endl;
     return logFile;
 }
 
 
-
-// https://stackoverflow.com/questions/8554441/how-to-output-with-3-digits-after-the-decimal-point-with-c-stream
-// paxdiablo for flags
-// https://stackoverflow.com/questions/29944985/is-there-a-way-to-pass-auto-as-an-argument-in-c
-// mike seymour for template t
+/**
+ * https://stackoverflow.com/questions/8554441/how-to-output-with-3-digits-after-the-decimal-point-with-c-stream
+ * User "paxdiablo" for flags
+ * https://stackoverflow.com/questions/29944985/is-there-a-way-to-pass-auto-as-an-argument-in-c
+ * User "Mike Seymour" for template t
+ * 
+ * Prints the current running real time when called
+ * 
+ * @param producerStartTime The time the program started
+ * @param endOfMethod A check to see if the program is ended or not, if ended add the time to the total time
+ */
 template <typename T>
 void printProgramRealTime( T producerStartTime, int endOfMethod )
 {
@@ -220,9 +147,6 @@ void printProgramRealTime( T producerStartTime, int endOfMethod )
     if( endOfMethod == 1 )
     {
         totalTime = prodDurationInSeconds;
-        // cout << "Total TIME: " << std::setprecision(3) << std::fixed << totalTime << endl;
-
-        // after i would do totalTime / numOFCommands
     } else {
         cout << std::setprecision(3) << std::fixed << prodDurationInSeconds;
     }
@@ -230,92 +154,61 @@ void printProgramRealTime( T producerStartTime, int endOfMethod )
     // Restore flags/precision.
     std::cout.flags (oldflags);
     std::cout.precision (oldprecision);
-    
-
 }
 
 
-
-
-
-
-
-
-// http://www.cplusplus.com/reference/ios/ios/eof/
-// coudl also put if c == enter
+/**
+ * http://www.cplusplus.com/reference/ios/ios/eof/
+ * 
+ * Function to take in the inputs and put it into the array the producer will get items from
+ * Inputs from either an input file or from the keyboard
+ */
 void inputFileRedirection()
 {
-    // vector<string> fullVecOfInputs;
     vector<char> tempInput;
-
-  char c;
-  while ( cin.get(c) and !cin.eof() )                  // loop getting single characters
+    char c;
+    while ( cin.get(c) and !cin.eof() )
     {
-        if( cin.eof() )
+        if( cin.eof() )     // I have an issue where "CTRL+D" needs to be inputted twice, I thought this would help
         {
             break;
         }
-        if( c != '\n' and c != ' ' and !cin.eof() )              // problem is c is just one char, it'll stay here cus that 1 char never changes
+        if( c != '\n' and c != ' ' and !cin.eof() )
         {
-            tempInput.push_back( c );                   // IT"S NOT PUSHING INTO THING
-        } else {                        // hitting here means it is new line
+            tempInput.push_back( c );
+        } else {
             std::string tempString(tempInput.begin(), tempInput.end());
-            // cout << "tempstring " << tempString << endl;
             fullVecOfInputs.push_back( tempString );
             tempInput.clear();
         }
     }
-    // here at end i might have to do one more tempstring push to fullvecofinputs cus 
-    // i think it skips the last time doing it
-    std::string tempString(tempInput.begin(), tempInput.end());
-    // cout << "tempstring " << tempString << endl;
-    fullVecOfInputs.push_back( tempString );
+    std::string tempString(tempInput.begin(), tempInput.end());     // Have to do it one more time because on the final eof
+    fullVecOfInputs.push_back( tempString );                        // it doesn't push the final item into the vector
     tempInput.clear();
-
-
-    // for( int i = 0; i < fullVecOfInputs.size(); ++i )
-    // {
-    //     cout << fullVecOfInputs[i] << endl;
-    // }
-
 
     for( int a = 0; a < fullVecOfInputs.size(); ++a )
     {
-        if( fullVecOfInputs[a].at(0) == 'T' )
+        if( fullVecOfInputs[a].at(0) == 'T' )                       // Counting how many T commands
         {
-            // cout << "T " << 
             numOfTCommands++;
             commandsRemaining++;
         }
         numOfTotalCommands++;
     }
-    // cout << "finput file datekn" << endl;
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void * producer( void * parm )          // idk how to pass the fullVecofInputs in to this method with the thead stuff in mains
+/**
+ * https://www.linuxquestions.org/questions/programming-9/passing-array-to-thread-function-825699/
+ * User "paulsm4" on how to pass array to thread function using *parm
+ * 
+ * The producer, takes items one by one from the inputs vector and pushes them to the sharedbuffer
+ * 
+ * @param parm Pointer to the inputs array
+ */
+void * producer( void * parm )
 {
     auto producerStartTime = std::chrono::high_resolution_clock::now();
-
     int prodID = 0;
 
     string *localBuffer = (string *) parm;
@@ -325,161 +218,57 @@ void * producer( void * parm )          // idk how to pass the fullVecofInputs i
         prodArray.push_back( fullVecOfInputs[a] );
     }
     
-
-    
-    // printf("producer started.\n");
-    // int i;
     for( int i = 0; i < numOfTotalCommands; i++ )
-    { /* produce an item, one character from item[] */
+    {
         if ( prodArray.size() == 0 ) 
         {
-            // cout << "prodArray size is 0" << endl;
-            break;  /* Quit if at end of string. */
+            break;
         }
+        pthread_mutex_lock( &( buffer.mutex ) );            // LOCK
 
-        pthread_mutex_lock( &( buffer.mutex ) );            // HERES THE LOCK
-
-
-
-        // MAYBE HERE DURING THE PRODUCER LOCK IS WHERE WE GRAB THE INPUT, THE WHOLE THING PAUSES HERE RIGHT
-        // no maybe i can't do it here cus maybe there won't be another input
-        // and the prod would just be stuck here
-
-        // if (buffer.occupied >= globalUserDefinedBufferSize)              // buffer.occupied is like a counting semaphore
-        // {
-        //     printf("the producer is WAITING.\n");
-        // }
-
-        while (buffer.occupied >= globalUserDefinedBufferSize)
+        while (buffer.numOfBufferItems >= globalUserDefinedBufferSize)      // Producer is waiting to put more things
         {
             pthread_cond_wait(&(buffer.less), &(buffer.mutex) );
         }
-        // printf("producer executing.\n");
 
-
-        // cout << "Pushing into sharedbuff: " << prodArray[0] << endl;
-        // I SHOULD PUT A IF CHECK HERE, IF THE ITEM IS START WITH S DON'T PUSH IT,
-        // JUST DO THE SLEEP COMMAND FUNCTION. ONLY PUSH INTO SHAREDBUFFER IF IT"S
-        // A T<n>
         char currentProdArrayItem = prodArray[0].at(0);
-
-
-
-
-        // i put the time in both rather than after the if statements cus when it sleeps it eats a lotta time
-        if( currentProdArrayItem == 'T' )               // how to see if first letter in string is S
+        if( currentProdArrayItem == 'T' )                    // T<n> Command
         {
-            // cout << "T Found" << endl;
             localBuffer[buffer.nextin] = prodArray[0];
             buffer.nextin++;
-            buffer.occupied++;
+            buffer.numOfBufferItems++;
             buffer.nextin %= globalUserDefinedBufferSize;
-//------------------------------------------------------------------------------------------------------------------------------------------------------------
-//------------------------------------------------------------------------------------------------------------------------------------------------------------
-//------------------------------------------------------------------------------------------------------------------------------------------------------------
-//------------------------------------------------------------------------------------------------------------------------------------------------------------
-            cout << "   ";
-            printProgramRealTime( producerStartTime, 0 );       // for the work recieved'
-            cout << " " << "ID= " << prodID << " " << "Q= " << buffer.occupied << " " << "Work       " << prodArray[0].substr( 1, prodArray.size() - 1 ) << endl;
-            
-            
-            // auto producerCommandTime = std::chrono::high_resolution_clock::now();
-            // auto prodDuration = std::chrono::duration_cast<std::chrono::microseconds>( producerCommandTime - producerStartTime ).count();
-            // cout << "Producer Time: " << std::fixed << std::setprecision(3) << prodDuration << endl;
-
-
-
-
-
-
-        } else if ( currentProdArrayItem == 'S' ) {
-            // cout << "S found" << endl;
-            // auto producerCommandTime = std::chrono::high_resolution_clock::now();
-            // auto prodDuration = std::chrono::duration_cast<std::chrono::microseconds>( producerCommandTime - producerStartTime ).count();
-            // cout << "Producer Time: " << std::fixed << std::setprecision(3) << prodDuration << endl;
 
             cout << "   ";
-            printProgramRealTime( producerStartTime, 0 );   // for the sleep
+            printProgramRealTime( producerStartTime, 0 );       
+            cout << " " << "ID= " << prodID << " " << "Q= " << buffer.numOfBufferItems << " " << "Work       " << prodArray[0].substr( 1, prodArray.size() - 1 ) << endl;
+        } else if ( currentProdArrayItem == 'S' ) {         // S<n> command
+            cout << "   ";
+            printProgramRealTime( producerStartTime, 0 );
             cout << " " << "ID= " << prodID << "     " << " " << "Sleep      " << prodArray[0].substr( 1, prodArray.size() - 1 ) << endl;
-
 
             string intOfSCommand = prodArray[0].substr( 1, prodArray.size() - 1 );
             int transTime = stoi( intOfSCommand );
-            // cout << "Sleeptime" << transTime << endl;
             Sleep( transTime );   
         }
-
-
-
-
-
         prodArray.erase( prodArray.begin() );
-
-
-
-        // cout << "stuff left in the producer arraY:" << " ";
-        // for( int a = 0; a < prodArray.size(); a++ )
-        // {
-        //     cout << prodArray[a] << " ";
-        // }
-        // cout << endl;
-        // buffer.nextin++;
-        // buffer.nextin %= bufferSize;
-
-
-
-        // buffer.occupied++;
-
-
-
-        
-        /* now: either buffer.occupied < BUFFERSIZE and buffer.nextin is the index
-         of the next empty slot in the buffer, or
-         buffer.occupied == BUFFERSIZE and buffer.nextin is the index of the
-         next (occupied) slot that will be emptied by a consumer
-         (such as buffer.nextin == buffer.nextout) */
         pthread_cond_signal(&(buffer.more));
-        pthread_mutex_unlock(&(buffer.mutex));          // UNLOCK  - writing to the file should happen before the unlock
+        pthread_mutex_unlock(&(buffer.mutex));          // UNLOCK
     }
-    
-    // cout << "sharedbuffer" << " " << localBuffer[0] << " " 
-    //     << localBuffer[1] << " " << localBuffer[2] << endl;
-
-
-    printProgramRealTime( producerStartTime, 1 );       // "end of input for producer" 
-    
-
-
-        /*
-        THE ASSIGNEMENT SAID 'DONT LEAVE ANYTHING RUNNING AFTER THE PRODUCER EXITS, YOU'LL BE PENALISED
-        SO I THINK I SHOULD BUSY WAIT HERE WHILE CONSUMERS STILL RUNNING
-        MAKE ANOTHER LGOBAL VARIABLE COUNTER, IF == 0 THEN EXIT PRODUCER
-        */
-    while( runningThreads > 0 or producerThreadCanExit == false )
+    printProgramRealTime( producerStartTime, 1 );
+    while( runningConsumerThreads > 0 or producerThreadCanExit == false )   // Wait until all other threads are finished before exitting
     {
 
     }
-    // printf("producer exiting.\n");
-
     pthread_exit(0);
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * The consumer threads, takes items one at a time from the shared buffer. Waits when producer is pushing items
+ * 
+ * @param parm A pointer to the shared buffer array
+ */
 void * consumer(void * parm)
 {
     auto consumerStartTime = std::chrono::high_resolution_clock::now();
@@ -489,213 +278,91 @@ void * consumer(void * parm)
     string *localBuffer = (string *) parm;
     int completedTasks = 0;
 
-
-    runningThreads++;
+    runningConsumerThreads++;
 
     string conCurrItem;
-    int i;
-    // printf("consumer started.\n");
-    // cout << "consumer " << conID << " started" << endl;
-
-    // for( i = 0; i < numOfTotalCommands; i++ )
-    // while( commandsRemaining > 0 )
     while( true )
     {
-        // cout << "consumer " << conID  << "Commands remaining " << commandsRemaining << endl;
-
-        // cout << "consumer " << conID << " " << i << endl;
-
-
-        // cout << "consumer " << conID  << "before lock " << endl;
-
-
-
-
-
-
         if( commandsRemaining <= 0 )
         {
-            // break;
-            // cout << "consumer " << conID << " exiting" << endl;
-            runningThreads--;
+            runningConsumerThreads--;
             printProgramRealTime( consumerStartTime, 1 );
-            // cout << "Con " << conID << "Compleeted " << completedTasks;
-            //  completedConsumerTasks[ conID ].push_back( completedTasks );
-            // completedConsumerTasks[ conID ].push_back( completedTasks );
+            completedConsumerTasks[ conID ] = completedTasks;
 
-            // completedConsumerTasks[ conID ][ 1 ] = completedTasks;
-            // completedConsumerTasks.insert( completedConsumerTasks.begin() + conID, completedTasks );
-    completedConsumerTasks[ conID ] = completedTasks;
-        cout << "   ";
-        printProgramRealTime( consumerStartTime, 0 );
-        cout << " " << "ID= " << conID << "      " << "Ask" << endl;
-
-
+            cout << "   ";
+            printProgramRealTime( consumerStartTime, 0 );
+            cout << " " << "ID= " << conID << "      " << "Ask" << endl;
 
             pthread_exit(0);
         }
 
-
-
-
-
-
         pthread_mutex_lock( &(buffer.mutex) );                   // LOCK
-        // cout << "consumer " << conID  << "after lock"  << endl;
 
-
-        // HERE CONSUMER ASKS FOR WORK
-        // cout << "consumer " << conID << " asking for work " << endl;
         cout << "   ";
         printProgramRealTime( consumerStartTime, 0 );
         cout << " " << "ID= " << conID << "      " << "Ask" << endl;
+
         numOfConsumerAsks++;
 
-
-
-        // printProgramRealTime( consumerStartTime, 0 );   // for the ask
-        // cout << "Buffer.occupied value " << buffer.occupied << endl;
-
-
-
-
-
-
-
-
-        // if ( buffer.occupied <= 0 ) 
-        // {
-        //     // cout << "consumer " << conID << " WAITING" << endl;            // This is strickly waiting
-        // }
-
-        while( buffer.occupied <= 0 && commandsRemaining > 0 )
+        while( buffer.numOfBufferItems <= 0 && commandsRemaining > 0 )      // While buffer empty, wait
         {
             pthread_cond_wait( &(buffer.more), &(buffer.mutex) );            
         }
 
-
-        if( commandsRemaining <= 0 )
+        if( commandsRemaining <= 0 )                // Put the exit check again in case the number of commands changes since first check
         {
-            // break;
-            // cout << "consumer " << conID << " exiting" << endl;
-            runningThreads--;
+            runningConsumerThreads--;
             printProgramRealTime( consumerStartTime, 1 );
-            // cout << "Con " << conID << "Compleeted " << completedTasks;
+            completedConsumerTasks[ conID ] = completedTasks;
 
-            // completedConsumerTasks[ conID ].push_back( completedTasks );
-            // completedConsumerTasks[ conID ][ 1 ] = completedTasks;
-            // completedConsumerTasks[ conID ].push_back( completedTasks );
-            // completedConsumerTasks[ conID ][ 1 ] = completedTasks;
-            // completedConsumerTasks.insert( completedConsumerTasks.begin() + conID, completedTasks );
-    completedConsumerTasks[ conID ] = completedTasks;
-    cout << "   ";
-        printProgramRealTime( consumerStartTime, 0 );
-        cout << " " << "ID= " << conID << "      " << "Ask" << endl;
-
-
-
+            cout << "   ";
+            printProgramRealTime( consumerStartTime, 0 );
+            cout << " " << "ID= " << conID << "      " << "Ask" << endl;
 
             pthread_exit(0);
         }
 
-        
+        conCurrItem = localBuffer[buffer.nextout++];
+        int commandsWaitingInBuffer = 0;
 
-        // cout << "consumer " << conID << " executing " << endl;
-            conCurrItem = localBuffer[buffer.nextout++];
-            // cout << "                          Current CONSUMER " << conID << " item: " << conCurrItem << endl;
-            
-            int commandsWaitingInBuffer = 0;
-            if( buffer.occupied > 0 )
-            {
-                commandsWaitingInBuffer = buffer.occupied - 1;
-            } else {
-                commandsWaitingInBuffer = buffer.occupied;
-            }
+        if( buffer.numOfBufferItems > 0 )
+        {
+            commandsWaitingInBuffer = buffer.numOfBufferItems - 1;      // Consumer just took one out, so there's 1 less buffer item
+        } else {
+            commandsWaitingInBuffer = buffer.numOfBufferItems;
+        }
 
-            cout << "   ";
-            printProgramRealTime( consumerStartTime, 0 );
-            cout << " " << "ID= " << conID << " " << "Q= " << commandsWaitingInBuffer << " " << "Recieve    " << conCurrItem.substr( 1, conCurrItem.size() -1 ) << endl;
-
-            buffer.nextout %= globalUserDefinedBufferSize;
-            buffer.occupied--;
-
-
-
-
-            commandsRemaining--;
-
-
-            /* now: either buffer.occupied > 0 and buffer.nextout is the index
-            of the next occupied slot in the buffer, or
-            buffer.occupied == 0 and buffer.nextout is the index of the next
-            (empty) slot that will be filled by a producer (such as
-            buffer.nextout == buffer.nextin) */
-
-
-
-
-            pthread_cond_signal(&(buffer.less)); 
-            pthread_mutex_unlock(&(buffer.mutex));                         // UNLOCK
-
-            string intOfTCommand = conCurrItem.substr( 1, conCurrItem.size() - 1 );
-            int transTime = stoi( intOfTCommand );
-            // cout << "Transtime" << transTime << endl;
-
-            // printProgramRealTime( consumerStartTime, 0 );       // for the recieved
-
-            Trans( transTime );
-
-            cout << "   ";
-            printProgramRealTime( consumerStartTime, 0 );       // for the completed
-            cout << " " << "ID= " << conID << "      " << "Complete   " << conCurrItem.substr( 1, conCurrItem.size() - 1 ) << endl;
-            completedTasks++;
-
-
-            // pthread_cond_signal(&(buffer.less)); 
-            // pthread_mutex_unlock(&(buffer.mutex));                         // UNLOCK
-
-
-
-        // cout << "consumer " << conID << " finished trans " << endl;
-            // break;                                           // with this break each consumer thread takes 1 item and that's it done exits
-        
-    }
-
-    // this would be in case for some reason it reached the end of the method, failsafe
-    // cout << "consumer " << conID << " exiting" << endl;
-    runningThreads--;
-
-
-    // vector<int> tempCompletedConTasksitem( conID, completedTasks );
-    // cout << "Con " << conID << "Compleeted " << completedTasks;
-    // completedConsumerTasks[ conID ].push_back( completedTasks );
-    // completedConsumerTasks[ conID ][ 1 ] = completedTasks;
-            // completedConsumerTasks[ conID ].push_back( completedTasks );
-            // completedConsumerTasks[ conID ][ 1 ] = completedTasks;
-    // completedConsumerTasks.insert( completedConsumerTasks.begin() + conID, completedTasks );
-    completedConsumerTasks[ conID ] = completedTasks;
-cout << "   ";
+        cout << "   ";
         printProgramRealTime( consumerStartTime, 0 );
-        cout << " " << "ID= " << conID << "      " << "Ask" << endl;
+        cout << " " << "ID= " << conID << " " << "Q= " << commandsWaitingInBuffer << " " << "Recieve    " << conCurrItem.substr( 1, conCurrItem.size() -1 ) << endl;
 
+        buffer.nextout %= globalUserDefinedBufferSize;
+        buffer.numOfBufferItems--;
+        commandsRemaining--;
 
-    printProgramRealTime( consumerStartTime, 1 );
-    pthread_exit(0);
+        pthread_cond_signal(&(buffer.less)); 
+        pthread_mutex_unlock(&(buffer.mutex));                         // UNLOCK
+
+        string intOfTCommand = conCurrItem.substr( 1, conCurrItem.size() - 1 );
+        int transTime = stoi( intOfTCommand );
+        Trans( transTime );
+
+        cout << "   ";
+        printProgramRealTime( consumerStartTime, 0 );       // for the completed
+        cout << " " << "ID= " << conID << "      " << "Complete   " << conCurrItem.substr( 1, conCurrItem.size() - 1 ) << endl;
+
+        completedTasks++;
+    }
+    runningConsumerThreads--;
+    completedConsumerTasks[ conID ] = completedTasks;
+
+    cout << "   ";
+    printProgramRealTime( consumerStartTime, 0 );
+    cout << " " << "ID= " << conID << "      " << "Ask" << endl;
+
+    printProgramRealTime( consumerStartTime, 1 );                  // Consumer should never reach here because it should've
+    pthread_exit(0);                                               // exitted before, but just in case
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /*
 the way this prod con system works is the prod will keep tryna put things into the buffer till either the buffer's full
