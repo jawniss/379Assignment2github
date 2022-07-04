@@ -24,7 +24,7 @@ tands.o: tands.c
 clean:
 	@rm -rf prodcon ProducerConsumerProblem.o tands.o prodcon *.log
 # on Windows:
-#       -del prodcon ProducerConsumerProblem.o tands.o prodcon *.log
+#       -del prodcon.exe ProducerConsumerProblem.o tands.o prodcon *.log
 
 # Important: make sure you provide a way in your 
 # makefile to allow us to compile your program with “-O” 
